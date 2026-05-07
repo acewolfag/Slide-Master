@@ -45,6 +45,7 @@ import type {
   Review,
   ReviewListResponse,
   SearchSuggestion,
+  ServicePlan,
   SuccessResponse,
   Tag,
   Template,
@@ -52,6 +53,7 @@ import type {
   TemplateListResponse,
   UpdateCustomRequestStatusBody,
   UpdateProfileBody,
+  UpdateServicePlanBody,
   User,
   Voucher,
 } from "./api.schemas";
@@ -4014,3 +4016,240 @@ export const useCreateBlogPost = <
 > => {
   return useMutation(getCreateBlogPostMutationOptions(options));
 };
+
+/**
+ * @summary Admin list service pricing plans
+ */
+export const getListAdminPricingUrl = () => {
+  return `/api/admin/pricing`;
+};
+
+export const listAdminPricing = async (
+  options?: RequestInit,
+): Promise<ServicePlan[]> => {
+  return customFetch<ServicePlan[]>(getListAdminPricingUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListAdminPricingQueryKey = () => {
+  return [`/api/admin/pricing`] as const;
+};
+
+export const getListAdminPricingQueryOptions = <
+  TData = Awaited<ReturnType<typeof listAdminPricing>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listAdminPricing>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListAdminPricingQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listAdminPricing>>
+  > = ({ signal }) => listAdminPricing({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listAdminPricing>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListAdminPricingQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listAdminPricing>>
+>;
+export type ListAdminPricingQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Admin list service pricing plans
+ */
+
+export function useListAdminPricing<
+  TData = Awaited<ReturnType<typeof listAdminPricing>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listAdminPricing>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListAdminPricingQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Admin update a service pricing plan
+ */
+export const getUpdateServicePlanUrl = (id: number) => {
+  return `/api/admin/pricing/${id}`;
+};
+
+export const updateServicePlan = async (
+  id: number,
+  updateServicePlanBody: UpdateServicePlanBody,
+  options?: RequestInit,
+): Promise<ServicePlan> => {
+  return customFetch<ServicePlan>(getUpdateServicePlanUrl(id), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateServicePlanBody),
+  });
+};
+
+export const getUpdateServicePlanMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateServicePlan>>,
+    TError,
+    { id: number; data: BodyType<UpdateServicePlanBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateServicePlan>>,
+  TError,
+  { id: number; data: BodyType<UpdateServicePlanBody> },
+  TContext
+> => {
+  const mutationKey = ["updateServicePlan"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateServicePlan>>,
+    { id: number; data: BodyType<UpdateServicePlanBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateServicePlan(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateServicePlanMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateServicePlan>>
+>;
+export type UpdateServicePlanMutationBody = BodyType<UpdateServicePlanBody>;
+export type UpdateServicePlanMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Admin update a service pricing plan
+ */
+export const useUpdateServicePlan = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateServicePlan>>,
+    TError,
+    { id: number; data: BodyType<UpdateServicePlanBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateServicePlan>>,
+  TError,
+  { id: number; data: BodyType<UpdateServicePlanBody> },
+  TContext
+> => {
+  return useMutation(getUpdateServicePlanMutationOptions(options));
+};
+
+/**
+ * @summary Public list of active service pricing plans
+ */
+export const getListServicePricingUrl = () => {
+  return `/api/pricing`;
+};
+
+export const listServicePricing = async (
+  options?: RequestInit,
+): Promise<ServicePlan[]> => {
+  return customFetch<ServicePlan[]>(getListServicePricingUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListServicePricingQueryKey = () => {
+  return [`/api/pricing`] as const;
+};
+
+export const getListServicePricingQueryOptions = <
+  TData = Awaited<ReturnType<typeof listServicePricing>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listServicePricing>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListServicePricingQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listServicePricing>>
+  > = ({ signal }) => listServicePricing({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listServicePricing>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListServicePricingQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listServicePricing>>
+>;
+export type ListServicePricingQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Public list of active service pricing plans
+ */
+
+export function useListServicePricing<
+  TData = Awaited<ReturnType<typeof listServicePricing>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listServicePricing>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListServicePricingQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}

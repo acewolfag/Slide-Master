@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, timestamp, numeric, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, timestamp, numeric, pgEnum, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./users";
@@ -33,6 +33,7 @@ export const customRequestsTable = pgTable("custom_requests", {
   deadline: text("deadline").notNull(),
   budget: text("budget"),
   notes: text("notes"),
+  attachments: jsonb("attachments").$type<{ name: string; url: string; type: string }[]>().default([]),
   quotedPrice: numeric("quoted_price", { precision: 12, scale: 2 }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),

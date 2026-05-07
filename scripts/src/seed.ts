@@ -7,6 +7,7 @@ import {
   blogPostsTable,
   vouchersTable,
   customRequestsTable,
+  servicePricingTable,
 } from "@workspace/db";
 import crypto from "crypto";
 
@@ -352,6 +353,31 @@ async function seed() {
     quotedPrice: "4500000",
     notes: "Cần thiết kế pitch deck cho vòng gọi vốn Series A",
   }).onConflictDoNothing();
+
+  // Service Pricing
+  await db.insert(servicePricingTable).values([
+    {
+      name: "Cơ bản", nameEn: "Basic", slides: "10–15 slides",
+      price: "1500000", deliveryDays: 3, revisions: "2 lần",
+      features: ["1 phong cách thiết kế", "Font & màu theo yêu cầu", "File PPTX gốc", "Hỗ trợ 15 ngày"],
+      featuresEn: ["1 design style", "Custom font & colors", "Original PPTX file", "15-day support"],
+      isHighlight: false, isActive: true, sortOrder: 1,
+    },
+    {
+      name: "Chuyên nghiệp", nameEn: "Professional", slides: "16–30 slides",
+      price: "3500000", deliveryDays: 5, revisions: "3 lần",
+      features: ["2 phong cách đề xuất", "Infographic & icon tùy chỉnh", "Animation cơ bản", "File PPTX + PDF", "Hỗ trợ 30 ngày"],
+      featuresEn: ["2 proposed styles", "Custom infographic & icons", "Basic animations", "PPTX + PDF files", "30-day support"],
+      isHighlight: true, isActive: true, sortOrder: 2,
+    },
+    {
+      name: "Premium", nameEn: "Premium", slides: "31–50 slides",
+      price: "7000000", deliveryDays: 7, revisions: "Không giới hạn",
+      features: ["Tư vấn thương hiệu", "Motion graphics nâng cao", "Tất cả định dạng file", "Hỗ trợ trình bày trực tiếp", "Hỗ trợ 60 ngày"],
+      featuresEn: ["Brand consulting", "Advanced motion graphics", "All file formats", "Live presentation support", "60-day support"],
+      isHighlight: false, isActive: true, sortOrder: 3,
+    },
+  ]).onConflictDoNothing();
 
   console.log("Seeding complete!");
 }

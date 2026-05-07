@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { ordersTable, templatesTable, customRequestsTable, usersTable, vouchersTable, reviewsTable, blogPostsTable, categoriesTable } from "@workspace/db";
-import { eq, desc, and, sql, gte } from "drizzle-orm";
+import { ordersTable, templatesTable, customRequestsTable, usersTable, vouchersTable, reviewsTable, blogPostsTable, categoriesTable, servicePricingTable } from "@workspace/db";
+import { eq, desc, and, sql, gte, asc } from "drizzle-orm";
 import { parseToken } from "./auth";
 
 const router = Router();
@@ -210,6 +210,39 @@ router.patch("/admin/reviews/:id/hide", async (req, res): Promise<void> => {
   const id = parseInt(req.params.id, 10);
   await db.update(reviewsTable).set({ isHidden: true }).where(eq(reviewsTable.id, id));
   res.json({ success: true });
+});
+
+function formatPricing(p: typeof servicePricingTable.$inferSelect) {
+  return {
+    id: p.id, name: p.name, nameEn: p.nameEn, slides: p.slides,
+    price: parseFloat(String(p.price)), deliveryDays: p.deliveryDays,
+    revisions: p.revisions, features: p.features, featuresEn: p.featuresEn,
+    isHighlight: p.isHighlight, isActive: p.isActive, sortOrder: p.sortOrder,
+    updatedAt: p.updatedAt.toISOString(),
+  };
+}
+
+router.get("/admin/pricing", async (req, res): Promise<void> => {
+  const ok = await requireAdmin(req, res);
+  if (!ok) return;
+  const plans = await db.select().from(servicePricingTable).orderBy(asc(servicePricingTable.sortOrder));
+  res.json(plans.map(formatPricing));
+});
+
+router.put("/admin/pricing/:id", async (req, res): Promise<void> => {
+  const ok = await requireAdmin(req, res);
+  if (!ok) return;
+  const id = parseInt(req.params.id, 10);
+  const { name, nameEn, slides, price, deliveryDays, revisions, features, featuresEn, isHighlight, isActive, sortOrder } = req.body;
+  const [updated] = await db.update(servicePricingTable).set({
+    name, nameEn, slides, price: String(price),
+    deliveryDays: Number(deliveryDays), revisions,
+    features: features ?? [], featuresEn: featuresEn ?? [],
+    isHighlight: Boolean(isHighlight), isActive: Boolean(isActive),
+    sortOrder: Number(sortOrder ?? 0),
+  }).where(eq(servicePricingTable.id, id)).returning();
+  if (!updated) { res.status(404).json({ error: "Not found" }); return; }
+  res.json(formatPricing(updated));
 });
 
 router.post("/admin/blog", async (req, res): Promise<void> => {

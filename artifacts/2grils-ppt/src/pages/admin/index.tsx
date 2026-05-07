@@ -4,7 +4,7 @@ import { useGetAdminStats, useGetCurrentUser } from "@workspace/api-client-react
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
-import { TrendingUp, ShoppingCart, Users, FileText, LayoutDashboard, Package, Settings, Tag } from "lucide-react";
+import { TrendingUp, ShoppingCart, Users, FileText, LayoutDashboard, Package, Settings, Tag, DollarSign } from "lucide-react";
 
 function AdminNav() {
   return (
@@ -20,6 +20,7 @@ function AdminNav() {
           { href: "/admin/custom-requests", icon: FileText, label: "Custom Requests" },
           { href: "/admin/users", icon: Users, label: "Người dùng" },
           { href: "/admin/vouchers", icon: Tag, label: "Voucher" },
+          { href: "/admin/pricing", icon: DollarSign, label: "Bảng giá" },
         ].map(({ href, icon: Icon, label }) => (
           <Link key={href} href={href} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-300 hover:text-white hover:bg-slate-800 transition-colors">
             <Icon className="w-4 h-4" />

@@ -429,6 +429,47 @@ export interface CreateTemplateBody {
   status?: CreateTemplateBodyStatus;
 }
 
+export interface ServicePlan {
+  id: number;
+  name: string;
+  nameEn: string;
+  slides: string;
+  price: number;
+  deliveryDays: number;
+  revisions: string;
+  features: string[];
+  featuresEn: string[];
+  isHighlight: boolean;
+  isActive?: boolean;
+  sortOrder?: number;
+  updatedAt?: string;
+}
+
+export interface UpdateServicePlanBody {
+  name: string;
+  nameEn: string;
+  slides: string;
+  price: number;
+  deliveryDays: number;
+  revisions: string;
+  features: string[];
+  featuresEn: string[];
+  isHighlight: boolean;
+  isActive: boolean;
+  sortOrder: number;
+}
+
+export type UploadResultFilesItem = {
+  name?: string;
+  url?: string;
+  type?: string;
+  size?: number;
+};
+
+export interface UploadResult {
+  files?: UploadResultFilesItem[];
+}
+
 export type ListTemplatesParams = {
   category?: string;
   style?: string;

@@ -1118,3 +1118,82 @@ export const CreateBlogPostBody = zod.object({
   author: zod.string(),
   tags: zod.array(zod.string()).optional(),
 });
+
+/**
+ * @summary Admin list service pricing plans
+ */
+export const ListAdminPricingResponseItem = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  nameEn: zod.string(),
+  slides: zod.string(),
+  price: zod.number(),
+  deliveryDays: zod.number(),
+  revisions: zod.string(),
+  features: zod.array(zod.string()),
+  featuresEn: zod.array(zod.string()),
+  isHighlight: zod.boolean(),
+  isActive: zod.boolean().optional(),
+  sortOrder: zod.number().optional(),
+  updatedAt: zod.string().optional(),
+});
+export const ListAdminPricingResponse = zod.array(ListAdminPricingResponseItem);
+
+/**
+ * @summary Admin update a service pricing plan
+ */
+export const UpdateServicePlanParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateServicePlanBody = zod.object({
+  name: zod.string(),
+  nameEn: zod.string(),
+  slides: zod.string(),
+  price: zod.number(),
+  deliveryDays: zod.number(),
+  revisions: zod.string(),
+  features: zod.array(zod.string()),
+  featuresEn: zod.array(zod.string()),
+  isHighlight: zod.boolean(),
+  isActive: zod.boolean(),
+  sortOrder: zod.number(),
+});
+
+export const UpdateServicePlanResponse = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  nameEn: zod.string(),
+  slides: zod.string(),
+  price: zod.number(),
+  deliveryDays: zod.number(),
+  revisions: zod.string(),
+  features: zod.array(zod.string()),
+  featuresEn: zod.array(zod.string()),
+  isHighlight: zod.boolean(),
+  isActive: zod.boolean().optional(),
+  sortOrder: zod.number().optional(),
+  updatedAt: zod.string().optional(),
+});
+
+/**
+ * @summary Public list of active service pricing plans
+ */
+export const ListServicePricingResponseItem = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  nameEn: zod.string(),
+  slides: zod.string(),
+  price: zod.number(),
+  deliveryDays: zod.number(),
+  revisions: zod.string(),
+  features: zod.array(zod.string()),
+  featuresEn: zod.array(zod.string()),
+  isHighlight: zod.boolean(),
+  isActive: zod.boolean().optional(),
+  sortOrder: zod.number().optional(),
+  updatedAt: zod.string().optional(),
+});
+export const ListServicePricingResponse = zod.array(
+  ListServicePricingResponseItem,
+);

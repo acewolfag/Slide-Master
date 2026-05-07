@@ -9,10 +9,14 @@ import wishlistRouter from "./wishlist";
 import customRequestsRouter from "./custom-requests";
 import blogRouter from "./blog";
 import adminRouter from "./admin";
+import uploadRouter from "./upload";
+import pricingRouter from "./pricing";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
+router.use(uploadRouter);
+router.use(pricingRouter);
 router.use(authRouter);
 router.use(cartRouter);
 router.use(ordersRouter);

@@ -49,7 +49,7 @@ router.post("/custom-requests", async (req, res): Promise<void> => {
     customerName, customerEmail, customerPhone, company,
     slideType, targetAudience, objective, slideCount,
     style, colorPalette, aspectRatio, language,
-    deadline, budget, notes,
+    deadline, budget, notes, attachments,
   } = req.body;
 
   if (!customerName || !customerEmail || !slideType || !slideCount || !deadline || !language) {
@@ -83,6 +83,7 @@ router.post("/custom-requests", async (req, res): Promise<void> => {
     deadline,
     budget: budget ?? null,
     notes: notes ?? null,
+    attachments: Array.isArray(attachments) ? attachments : [],
   }).returning();
 
   res.status(201).json(formatRequest(request));

@@ -2,7 +2,9 @@ import { Layout } from "@/components/layout";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowRight, CheckCircle, Clock, Palette, Star, MessageSquare, Zap } from "lucide-react";
+import { useListServicePricing } from "@workspace/api-client-react";
 
 const STEPS = [
   { icon: MessageSquare, title: "Tư vấn yêu cầu", desc: "Điền form mô tả nhu cầu của bạn. Chúng tôi sẽ phản hồi trong 2 giờ." },
@@ -11,20 +13,16 @@ const STEPS = [
   { icon: CheckCircle, title: "Bàn giao file gốc", desc: "Nhận file PPTX gốc, font chữ và tất cả tài nguyên thiết kế." },
 ];
 
-const PRICING = [
-  { name: "Cơ bản", slides: "10-15 slides", price: "1.500.000", delivery: "3 ngày", revisions: "2 lần", features: ["1 phong cách", "Font & màu theo yêu cầu", "File PPTX gốc"] },
-  { name: "Chuyên nghiệp", slides: "16-30 slides", price: "3.500.000", delivery: "5 ngày", revisions: "3 lần", features: ["2 phong cách đề xuất", "Infographic & icon", "Animation cơ bản", "File PPTX + PDF"], highlight: true },
-  { name: "Premium", slides: "31-50 slides", price: "7.000.000", delivery: "7 ngày", revisions: "Không giới hạn", features: ["Tư vấn thương hiệu", "Motion graphics", "Tất cả định dạng file", "Hỗ trợ trình bày"] },
-];
-
 const FAQ = [
   { q: "Thời gian giao hàng là bao lâu?", a: "Từ 3-7 ngày làm việc tùy gói dịch vụ. Có thể giao nhanh hơn nếu bạn có deadline gấp (phụ phí áp dụng)." },
-  { q: "Tôi cần chuẩn bị gì?", a: "Nội dung text, logo, màu sắc thương hiệu (nếu có) và mô tả về đối tượng nghe. Chúng tôi sẽ hướng dẫn bạn qua form." },
+  { q: "Tôi cần chuẩn bị gì?", a: "Nội dung text, logo, màu sắc thương hiệu (nếu có) và mô tả về đối tượng nghe. Chúng tôi sẽ hướng dẫn bạn qua form đặt hàng." },
   { q: "Có thể chỉnh sửa sau khi nhận file không?", a: "Có! File PPTX gốc hoàn toàn có thể chỉnh sửa. Chúng tôi cũng cung cấp hỗ trợ 30 ngày sau bàn giao." },
   { q: "Tôi có thể xem portfolio không?", a: "Tất nhiên! Liên hệ qua fanpage để xem thêm các dự án đã thực hiện." },
 ];
 
 export default function CustomDesign() {
+  const { data: plans, isLoading } = useListServicePricing();
+
   return (
     <Layout>
       {/* Hero */}
@@ -78,48 +76,52 @@ export default function CustomDesign() {
       <section className="py-20 bg-slate-50">
         <div className="container mx-auto px-4">
           <h2 className="text-3xl font-bold text-center mb-4">Bảng giá tham khảo</h2>
-          <p className="text-muted-foreground text-center mb-12">Giá cuối cùng sẽ được báo sau khi tư vấn</p>
+          <p className="text-muted-foreground text-center mb-12">Giá cuối cùng sẽ được báo sau khi tư vấn chi tiết</p>
           <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            {PRICING.map((plan, i) => (
-              <Card key={i} className={`relative overflow-hidden ${plan.highlight ? "border-primary shadow-lg shadow-primary/10 scale-105" : "border-border/50"}`}>
-                {plan.highlight && (
-                  <div className="brand-gradient text-white text-xs font-bold text-center py-1.5 -mx-0 -mt-0">
-                    PHỔ BIẾN NHẤT
-                  </div>
-                )}
-                <CardContent className="p-6">
-                  <h3 className="text-xl font-bold mb-1">{plan.name}</h3>
-                  <p className="text-muted-foreground text-sm mb-4">{plan.slides}</p>
-                  <div className="mb-4">
-                    <span className="text-3xl font-extrabold text-primary">{plan.price}</span>
-                    <span className="text-sm text-muted-foreground ml-1">VND</span>
-                  </div>
-                  <div className="space-y-2 mb-4 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-primary" />
-                      Giao trong {plan.delivery}
+            {isLoading ? (
+              [1, 2, 3].map(i => <Skeleton key={i} className="h-96 rounded-xl" />)
+            ) : (
+              (plans as any[] | undefined)?.map((plan: any, i: number) => (
+                <Card key={plan.id} className={`relative overflow-hidden ${plan.isHighlight ? "border-primary shadow-lg shadow-primary/10 scale-105" : "border-border/50"}`}>
+                  {plan.isHighlight && (
+                    <div className="brand-gradient text-white text-xs font-bold text-center py-1.5">
+                      PHỔ BIẾN NHẤT
                     </div>
-                    <div className="flex items-center gap-2">
-                      <CheckCircle className="w-4 h-4 text-primary" />
-                      Chỉnh sửa {plan.revisions}
+                  )}
+                  <CardContent className="p-6">
+                    <h3 className="text-xl font-bold mb-1">{plan.name}</h3>
+                    <p className="text-muted-foreground text-sm mb-4">{plan.slides}</p>
+                    <div className="mb-4">
+                      <span className="text-3xl font-extrabold text-primary">{Number(plan.price).toLocaleString("vi-VN")}</span>
+                      <span className="text-sm text-muted-foreground ml-1">VND</span>
                     </div>
-                  </div>
-                  <ul className="space-y-2 mb-6">
-                    {plan.features.map(f => (
-                      <li key={f} className="flex items-center gap-2 text-sm">
-                        <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                        {f}
-                      </li>
-                    ))}
-                  </ul>
-                  <Link href="/custom-design/request">
-                    <Button className={`w-full ${plan.highlight ? "brand-gradient border-none" : ""}`} variant={plan.highlight ? "default" : "outline"}>
-                      Chọn gói này
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
-            ))}
+                    <div className="space-y-2 mb-4 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-primary" />
+                        Giao trong {plan.deliveryDays} ngày
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="w-4 h-4 text-primary" />
+                        Chỉnh sửa {plan.revisions}
+                      </div>
+                    </div>
+                    <ul className="space-y-2 mb-6">
+                      {(plan.features as string[]).map((f: string) => (
+                        <li key={f} className="flex items-center gap-2 text-sm">
+                          <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                          {f}
+                        </li>
+                      ))}
+                    </ul>
+                    <Link href="/custom-design/request">
+                      <Button className={`w-full ${plan.isHighlight ? "brand-gradient border-none" : ""}`} variant={plan.isHighlight ? "default" : "outline"}>
+                        Chọn gói này
+                      </Button>
+                    </Link>
+                  </CardContent>
+                </Card>
+              ))
+            )}
           </div>
         </div>
       </section>

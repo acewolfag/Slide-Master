@@ -945,6 +945,61 @@ paths:
               schema:
                 $ref: "#/components/schemas/BlogPost"
 
+  /admin/pricing:
+    get:
+      operationId: listAdminPricing
+      tags: [admin]
+      summary: Admin list service pricing plans
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ServicePlan"
+
+  /admin/pricing/{id}:
+    put:
+      operationId: updateServicePlan
+      tags: [admin]
+      summary: Admin update a service pricing plan
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateServicePlanBody"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServicePlan"
+
+  /pricing:
+    get:
+      operationId: listServicePricing
+      tags: [admin]
+      summary: Public list of active service pricing plans
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ServicePlan"
+
 components:
   schemas:
     HealthStatus:
@@ -1636,3 +1691,86 @@ components:
         status:
           type: string
           enum: [active, draft]
+
+    ServicePlan:
+      type: object
+      required: [id, name, nameEn, slides, price, deliveryDays, revisions, features, featuresEn, isHighlight]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        nameEn:
+          type: string
+        slides:
+          type: string
+        price:
+          type: number
+        deliveryDays:
+          type: integer
+        revisions:
+          type: string
+        features:
+          type: array
+          items:
+            type: string
+        featuresEn:
+          type: array
+          items:
+            type: string
+        isHighlight:
+          type: boolean
+        isActive:
+          type: boolean
+        sortOrder:
+          type: integer
+        updatedAt:
+          type: string
+
+    UpdateServicePlanBody:
+      type: object
+      required: [name, nameEn, slides, price, deliveryDays, revisions, features, featuresEn, isHighlight, isActive, sortOrder]
+      properties:
+        name:
+          type: string
+        nameEn:
+          type: string
+        slides:
+          type: string
+        price:
+          type: number
+        deliveryDays:
+          type: integer
+        revisions:
+          type: string
+        features:
+          type: array
+          items:
+            type: string
+        featuresEn:
+          type: array
+          items:
+            type: string
+        isHighlight:
+          type: boolean
+        isActive:
+          type: boolean
+        sortOrder:
+          type: integer
+
+    UploadResult:
+      type: object
+      properties:
+        files:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              url:
+                type: string
+              type:
+                type: string
+              size:
+                type: integer

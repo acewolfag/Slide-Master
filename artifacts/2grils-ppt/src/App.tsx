@@ -24,6 +24,7 @@ import AdminCustomRequests from "@/pages/admin/custom-requests";
 import AdminUsers from "@/pages/admin/users";
 import AdminVouchers from "@/pages/admin/vouchers";
 import AdminTemplates from "@/pages/admin/templates";
+import AdminPricing from "@/pages/admin/pricing";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -57,6 +58,7 @@ function Router() {
       <Route path="/admin/custom-requests" component={AdminCustomRequests} />
       <Route path="/admin/users" component={AdminUsers} />
       <Route path="/admin/vouchers" component={AdminVouchers} />
+      <Route path="/admin/pricing" component={AdminPricing} />
       <Route component={NotFound} />
     </Switch>
   );

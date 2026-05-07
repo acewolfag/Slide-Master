@@ -7,3 +7,4 @@ export * from "./custom-requests";
 export * from "./vouchers";
 export * from "./blog-posts";
 export * from "./wishlist";
+export * from "./service-pricing";
