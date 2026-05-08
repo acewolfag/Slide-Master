@@ -25,6 +25,7 @@ import AdminUsers from "@/pages/admin/users";
 import AdminVouchers from "@/pages/admin/vouchers";
 import AdminTemplates from "@/pages/admin/templates";
 import AdminPricing from "@/pages/admin/pricing";
+import AdminBanner from "@/pages/admin/banner";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -59,6 +60,7 @@ function Router() {
       <Route path="/admin/users" component={AdminUsers} />
       <Route path="/admin/vouchers" component={AdminVouchers} />
       <Route path="/admin/pricing" component={AdminPricing} />
+      <Route path="/admin/banner" component={AdminBanner} />
       <Route component={NotFound} />
     </Switch>
   );

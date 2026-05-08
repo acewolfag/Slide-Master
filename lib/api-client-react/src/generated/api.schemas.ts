@@ -294,12 +294,75 @@ export interface CreateBlogPostBody {
   tags?: string[];
 }
 
+export type SiteSettingsBanner = {
+  heading?: string;
+  subheading?: string;
+  badgeText?: string;
+  ctaText?: string;
+  ctaUrl?: string;
+  ctaSecondaryText?: string;
+  bgImageUrl?: string;
+};
+
+export interface SiteSettings {
+  banner?: SiteSettingsBanner;
+}
+
+export type UpdateUserRoleBodyRole =
+  (typeof UpdateUserRoleBodyRole)[keyof typeof UpdateUserRoleBodyRole];
+
+export const UpdateUserRoleBodyRole = {
+  customer: "customer",
+  admin: "admin",
+  designer: "designer",
+  staff: "staff",
+} as const;
+
+export type UpdateUserRoleBodyPermissions = {
+  manageOrders?: boolean;
+  manageTemplates?: boolean;
+  manageCustomRequests?: boolean;
+  manageBlog?: boolean;
+  viewStats?: boolean;
+  manageUsers?: boolean;
+  manageVouchers?: boolean;
+};
+
+export interface UpdateUserRoleBody {
+  role: UpdateUserRoleBodyRole;
+  permissions?: UpdateUserRoleBodyPermissions;
+}
+
+export type UserWithPermissionsRole =
+  (typeof UserWithPermissionsRole)[keyof typeof UserWithPermissionsRole];
+
+export const UserWithPermissionsRole = {
+  customer: "customer",
+  admin: "admin",
+  designer: "designer",
+  staff: "staff",
+} as const;
+
+export type UserWithPermissionsPermissions = { [key: string]: unknown } | null;
+
+export interface UserWithPermissions {
+  id: number;
+  name: string;
+  email: string;
+  role: UserWithPermissionsRole;
+  permissions?: UserWithPermissionsPermissions;
+  /** @nullable */
+  avatarUrl?: string | null;
+  createdAt: string;
+}
+
 export type UserRole = (typeof UserRole)[keyof typeof UserRole];
 
 export const UserRole = {
   customer: "customer",
   admin: "admin",
   designer: "designer",
+  staff: "staff",
 } as const;
 
 export interface User {

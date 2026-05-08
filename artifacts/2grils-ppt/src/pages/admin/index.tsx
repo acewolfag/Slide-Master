@@ -4,12 +4,13 @@ import { useGetAdminStats, useGetCurrentUser } from "@workspace/api-client-react
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
-import { TrendingUp, ShoppingCart, Users, FileText, LayoutDashboard, Package, Settings, Tag, DollarSign } from "lucide-react";
+import { TrendingUp, ShoppingCart, Users, FileText, LayoutDashboard, Package, Settings, Tag, DollarSign, Image } from "lucide-react";
 
 function AdminNav() {
   return (
     <aside className="w-56 flex-shrink-0 bg-slate-900 min-h-screen text-white flex flex-col">
-      <div className="p-6 border-b border-slate-700">
+      <div className="p-6 border-b border-slate-700 flex items-center gap-3">
+        <img src="/logo.jpg" alt="" className="w-8 h-8 rounded-full object-cover" />
         <span className="text-lg font-extrabold brand-gradient-text">2Grils Admin</span>
       </div>
       <nav className="p-4 space-y-1 flex-1">
@@ -21,6 +22,7 @@ function AdminNav() {
           { href: "/admin/users", icon: Users, label: "Người dùng" },
           { href: "/admin/vouchers", icon: Tag, label: "Voucher" },
           { href: "/admin/pricing", icon: DollarSign, label: "Bảng giá" },
+          { href: "/admin/banner", icon: Image, label: "Banner" },
         ].map(({ href, icon: Icon, label }) => (
           <Link key={href} href={href} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-300 hover:text-white hover:bg-slate-800 transition-colors">
             <Icon className="w-4 h-4" />

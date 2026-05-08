@@ -20,7 +20,7 @@ export default function Cart() {
   const [voucherCode, setVoucherCode] = useState("");
 
   const handleRemove = (templateId: number) => {
-    removeFromCart.mutate({ data: { templateId } }, {
+    removeFromCart.mutate({ templateId } as any, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getGetCartQueryKey() });
         toast({ title: "Đã xóa khỏi giỏ hàng" });

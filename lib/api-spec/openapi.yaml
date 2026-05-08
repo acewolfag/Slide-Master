@@ -1000,6 +1000,74 @@ paths:
                 items:
                   $ref: "#/components/schemas/ServicePlan"
 
+  /settings:
+    get:
+      operationId: getSiteSettings
+      tags: [admin]
+      summary: Get public site settings (banner etc.)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SiteSettings"
+
+  /admin/settings:
+    get:
+      operationId: getAdminSettings
+      tags: [admin]
+      summary: Admin get all site settings
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SiteSettings"
+    put:
+      operationId: updateSiteSettings
+      tags: [admin]
+      summary: Admin update site settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SiteSettings"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SiteSettings"
+
+  /admin/users/{id}/role:
+    put:
+      operationId: updateUserRole
+      tags: [admin]
+      summary: Admin update user role and permissions
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserRoleBody"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserWithPermissions"
+
 components:
   schemas:
     HealthStatus:
@@ -1492,6 +1560,73 @@ components:
           items:
             type: string
 
+    SiteSettings:
+      type: object
+      properties:
+        banner:
+          type: object
+          properties:
+            heading:
+              type: string
+            subheading:
+              type: string
+            badgeText:
+              type: string
+            ctaText:
+              type: string
+            ctaUrl:
+              type: string
+            ctaSecondaryText:
+              type: string
+            bgImageUrl:
+              type: string
+
+    UpdateUserRoleBody:
+      type: object
+      required: [role]
+      properties:
+        role:
+          type: string
+          enum: [customer, admin, designer, staff]
+        permissions:
+          type: object
+          properties:
+            manageOrders:
+              type: boolean
+            manageTemplates:
+              type: boolean
+            manageCustomRequests:
+              type: boolean
+            manageBlog:
+              type: boolean
+            viewStats:
+              type: boolean
+            manageUsers:
+              type: boolean
+            manageVouchers:
+              type: boolean
+
+    UserWithPermissions:
+      type: object
+      required: [id, name, email, role, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [customer, admin, designer, staff]
+        permissions:
+          type: object
+          nullable: true
+        avatarUrl:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
     User:
       type: object
       required: [id, name, email, role, createdAt]
@@ -1504,7 +1639,7 @@ components:
           type: string
         role:
           type: string
-          enum: [customer, admin, designer]
+          enum: [customer, admin, designer, staff]
         avatarUrl:
           type: ["string", "null"]
         createdAt:

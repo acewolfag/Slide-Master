@@ -1,44 +1,77 @@
 import { Link } from "wouter";
-import { ArrowRight, Zap, PenTool, Layout as LayoutIcon } from "lucide-react";
+import { ArrowRight, Zap, PenTool, Layout as LayoutIcon, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Layout } from "@/components/layout";
 import { TemplateCard } from "@/components/template-card";
-import { useListFeaturedTemplates, useListBestSellerTemplates } from "@workspace/api-client-react";
+import { useListFeaturedTemplates, useListBestSellerTemplates, useGetSiteSettings } from "@workspace/api-client-react";
 import { Skeleton } from "@/components/ui/skeleton";
+
+const DEFAULT_BANNER = {
+  heading: "Thuyết trình đỉnh cao\nChốt sale hoàn hảo",
+  subheading: "Hàng ngàn template PowerPoint cao cấp được thiết kế bởi chuyên gia, giúp bạn tiết kiệm thời gian và tạo ấn tượng mạnh mẽ.",
+  badgeText: "Tin tưởng bởi 500+ doanh nghiệp Việt Nam",
+  ctaText: "Khám phá Template",
+  ctaUrl: "/templates",
+  ctaSecondaryText: "Đặt thiết kế riêng",
+  bgImageUrl: "",
+};
 
 export default function Home() {
   const { data: featured, isLoading: loadingFeatured } = useListFeaturedTemplates();
   const { data: bestSellers, isLoading: loadingBestSellers } = useListBestSellerTemplates();
+  const { data: settings } = useGetSiteSettings();
+
+  const banner = { ...DEFAULT_BANNER, ...((settings as any)?.banner ?? {}) };
+  const headingLines = (banner.heading ?? "").split("\n");
 
   return (
     <Layout>
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-slate-50 pt-20 pb-32">
+      <section
+        className="relative overflow-hidden bg-slate-50 pt-20 pb-32"
+        style={banner.bgImageUrl ? { backgroundImage: `url(${banner.bgImageUrl})`, backgroundSize: "cover", backgroundPosition: "center" } : {}}
+      >
+        {banner.bgImageUrl && <div className="absolute inset-0 bg-slate-900/60" />}
         <div className="absolute inset-0 bg-[url('/noise.png')] opacity-[0.03] pointer-events-none mix-blend-multiply"></div>
         <div className="absolute top-0 right-0 -translate-y-12 translate-x-1/3 w-[800px] h-[800px] bg-primary/10 rounded-full blur-3xl pointer-events-none"></div>
         <div className="absolute bottom-0 left-0 translate-y-1/3 -translate-x-1/3 w-[600px] h-[600px] bg-secondary/10 rounded-full blur-3xl pointer-events-none"></div>
-        
+
         <div className="container mx-auto px-4 relative z-10">
           <div className="max-w-3xl mx-auto text-center">
-            <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-slate-900 mb-6 leading-tight">
-              Thuyết trình <span className="brand-gradient-text">đỉnh cao</span><br />
-              Chốt sale hoàn hảo
+            {banner.badgeText && (
+              <div className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm mb-6 ${banner.bgImageUrl ? "bg-white/10 text-white backdrop-blur-sm" : "bg-primary/10 text-primary"}`}>
+                <Star className="w-3.5 h-3.5 fill-current" />
+                {banner.badgeText}
+              </div>
+            )}
+            <h1 className={`text-5xl md:text-7xl font-extrabold tracking-tight mb-6 leading-tight ${banner.bgImageUrl ? "text-white" : "text-slate-900"}`}>
+              {headingLines.map((line: string, i: number) =>
+                i === headingLines.length - 1 ? (
+                  <span key={i}>
+                    <span className="brand-gradient-text">{line}</span>
+                  </span>
+                ) : (
+                  <span key={i}>{line}<br /></span>
+                )
+              )}
             </h1>
-            <p className="text-xl text-slate-600 mb-10 max-w-2xl mx-auto">
-              Hàng ngàn template PowerPoint cao cấp được thiết kế bởi chuyên gia, giúp bạn tiết kiệm thời gian và tạo ấn tượng mạnh mẽ.
+            <p className={`text-xl mb-10 max-w-2xl mx-auto ${banner.bgImageUrl ? "text-white/80" : "text-slate-600"}`}>
+              {banner.subheading}
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link href="/templates">
+              <Link href={banner.ctaUrl ?? "/templates"}>
                 <Button size="lg" className="h-14 px-8 text-base rounded-full brand-gradient border-none w-full sm:w-auto shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all hover:-translate-y-0.5">
-                  Khám phá Template
+                  {banner.ctaText}
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
-              <Link href="/custom-design">
-                <Button size="lg" variant="outline" className="h-14 px-8 text-base rounded-full w-full sm:w-auto border-2 hover:bg-slate-100">
-                  Đặt thiết kế riêng
-                </Button>
-              </Link>
+              {banner.ctaSecondaryText && (
+                <Link href="/custom-design">
+                  <Button size="lg" variant={banner.bgImageUrl ? "outline" : "outline"} className={`h-14 px-8 text-base rounded-full w-full sm:w-auto border-2 ${banner.bgImageUrl ? "border-white text-white hover:bg-white/10" : "hover:bg-slate-100"}`}>
+                    {banner.ctaSecondaryText}
+                  </Button>
+                </Link>
+              )}
             </div>
           </div>
         </div>

@@ -27,11 +27,11 @@ export default function TemplateDetail() {
   });
 
   const { data: reviews } = useListTemplateReviews(id, {
-    query: { enabled: !!id }
+    query: { enabled: !!id } as any
   });
 
   const { data: related } = useGetRelatedTemplates(id, {
-    query: { enabled: !!id }
+    query: { enabled: !!id } as any
   });
 
   const addToCart = useAddToCart();

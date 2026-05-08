@@ -18,6 +18,30 @@ const DEFAULT_JSON_ACCEPT = "application/json, application/problem+json";
 let _baseUrl: string | null = null;
 let _authTokenGetter: AuthTokenGetter | null = null;
 
+// ---------------------------------------------------------------------------
+// Cart ID management (persisted in localStorage)
+// ---------------------------------------------------------------------------
+let _cartId: string | null = null;
+
+function _initCartId(): void {
+  try {
+    if (typeof localStorage !== "undefined") {
+      _cartId = localStorage.getItem("cart_id");
+    }
+  } catch { /* ignore */ }
+}
+
+function _saveCartId(id: string): void {
+  _cartId = id;
+  try {
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem("cart_id", id);
+    }
+  } catch { /* ignore */ }
+}
+
+_initCartId();
+
 /**
  * Set a base URL that is prepended to every relative request URL
  * (i.e. paths that start with `/`).
@@ -358,9 +382,22 @@ export async function customFetch<T = unknown>(
     }
   }
 
+  // Attach persisted cart ID to every request so the server can match
+  // the in-memory cart session keyed by X-Cart-Id.
+  if (_cartId && !headers.has("x-cart-id")) {
+    headers.set("x-cart-id", _cartId);
+  }
+
   const requestInfo = { method, url: resolveUrl(input) };
 
   const response = await fetch(input, { ...init, method, headers });
+
+  // Persist the cart ID returned by the server so subsequent requests
+  // automatically carry it.
+  const returnedCartId = response.headers.get("x-cart-id");
+  if (returnedCartId) {
+    _saveCartId(returnedCartId);
+  }
 
   if (!response.ok) {
     const errorData = await parseErrorBody(response, method);

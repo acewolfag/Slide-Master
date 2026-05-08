@@ -1,20 +1,43 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { ordersTable, templatesTable, customRequestsTable, usersTable, vouchersTable, reviewsTable, blogPostsTable, categoriesTable, servicePricingTable } from "@workspace/db";
+import { ordersTable, templatesTable, customRequestsTable, usersTable, vouchersTable, reviewsTable, blogPostsTable, categoriesTable, servicePricingTable, siteSettingsTable } from "@workspace/db";
+import type { StaffPermissions } from "@workspace/db";
 import { eq, desc, and, sql, gte, asc } from "drizzle-orm";
 import { parseToken } from "./auth";
 
 const router = Router();
 
-async function requireAdmin(req: any, res: any): Promise<boolean> {
-  const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith("Bearer ")) { res.status(401).json({ error: "Unauthorized" }); return false; }
-  const payload = parseToken(authHeader.slice(7));
-  if (!payload) { res.status(401).json({ error: "Unauthorized" }); return false; }
+type AuthUser = typeof usersTable.$inferSelect;
 
+async function getAuthUser(req: any, res: any): Promise<AuthUser | null> {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith("Bearer ")) { res.status(401).json({ error: "Unauthorized" }); return null; }
+  const payload = parseToken(authHeader.slice(7));
+  if (!payload) { res.status(401).json({ error: "Unauthorized" }); return null; }
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, payload.userId));
-  if (!user || user.role !== "admin") { res.status(403).json({ error: "Forbidden" }); return false; }
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return null; }
+  return user;
+}
+
+async function requireAdmin(req: any, res: any): Promise<boolean> {
+  const user = await getAuthUser(req, res);
+  if (!user) return false;
+  if (user.role !== "admin") { res.status(403).json({ error: "Forbidden" }); return false; }
   return true;
+}
+
+async function requireAdminOrStaff(req: any, res: any, permission: keyof StaffPermissions): Promise<boolean> {
+  const user = await getAuthUser(req, res);
+  if (!user) return false;
+  if (user.role === "admin") return true;
+  if (user.role === "staff") {
+    const perms = (user.permissions ?? {}) as StaffPermissions;
+    if (perms[permission]) return true;
+    res.status(403).json({ error: "Quyền truy cập bị từ chối" });
+    return false;
+  }
+  res.status(403).json({ error: "Forbidden" });
+  return false;
 }
 
 router.get("/admin/stats", async (req, res): Promise<void> => {
@@ -186,7 +209,41 @@ router.get("/admin/users", async (req, res): Promise<void> => {
   const ok = await requireAdmin(req, res);
   if (!ok) return;
   const users = await db.select().from(usersTable).orderBy(desc(usersTable.createdAt));
-  res.json(users.map(u => ({ id: u.id, name: u.name, email: u.email, role: u.role, avatarUrl: u.avatarUrl, createdAt: u.createdAt.toISOString() })));
+  res.json(users.map(u => ({ id: u.id, name: u.name, email: u.email, role: u.role, permissions: u.permissions ?? null, avatarUrl: u.avatarUrl, createdAt: u.createdAt.toISOString() })));
+});
+
+router.put("/admin/users/:id/role", async (req, res): Promise<void> => {
+  const ok = await requireAdmin(req, res);
+  if (!ok) return;
+  const id = parseInt(req.params.id, 10);
+  const { role, permissions } = req.body;
+  const validRoles = ["customer", "admin", "designer", "staff"];
+  if (!validRoles.includes(role)) { res.status(400).json({ error: "Invalid role" }); return; }
+  const [updated] = await db.update(usersTable).set({ role, permissions: permissions ?? null }).where(eq(usersTable.id, id)).returning();
+  if (!updated) { res.status(404).json({ error: "User not found" }); return; }
+  res.json({ id: updated.id, name: updated.name, email: updated.email, role: updated.role, permissions: updated.permissions ?? null, avatarUrl: updated.avatarUrl, createdAt: updated.createdAt.toISOString() });
+});
+
+router.get("/admin/settings", async (req, res): Promise<void> => {
+  const ok = await requireAdmin(req, res);
+  if (!ok) return;
+  const rows = await db.select().from(siteSettingsTable);
+  const result: Record<string, any> = {};
+  for (const row of rows) result[row.key] = row.value;
+  res.json(result);
+});
+
+router.put("/admin/settings", async (req, res): Promise<void> => {
+  const ok = await requireAdmin(req, res);
+  if (!ok) return;
+  const settings = req.body as Record<string, any>;
+  for (const [key, value] of Object.entries(settings)) {
+    await db.insert(siteSettingsTable).values({ key, value }).onConflictDoUpdate({ target: siteSettingsTable.key, set: { value } });
+  }
+  const rows = await db.select().from(siteSettingsTable);
+  const result: Record<string, any> = {};
+  for (const row of rows) result[row.key] = row.value;
+  res.json(result);
 });
 
 router.get("/admin/vouchers", async (req, res): Promise<void> => {
@@ -243,6 +300,13 @@ router.put("/admin/pricing/:id", async (req, res): Promise<void> => {
   }).where(eq(servicePricingTable.id, id)).returning();
   if (!updated) { res.status(404).json({ error: "Not found" }); return; }
   res.json(formatPricing(updated));
+});
+
+router.get("/settings", async (req, res): Promise<void> => {
+  const rows = await db.select().from(siteSettingsTable);
+  const result: Record<string, any> = {};
+  for (const row of rows) result[row.key] = row.value;
+  res.json(result);
 });
 
 router.post("/admin/blog", async (req, res): Promise<void> => {

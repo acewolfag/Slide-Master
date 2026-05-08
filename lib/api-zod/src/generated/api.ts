@@ -723,7 +723,7 @@ export const LoginResponse = zod.object({
     id: zod.number(),
     name: zod.string(),
     email: zod.string(),
-    role: zod.enum(["customer", "admin", "designer"]),
+    role: zod.enum(["customer", "admin", "designer", "staff"]),
     avatarUrl: zod.string().nullish(),
     createdAt: zod.string(),
   }),
@@ -744,7 +744,7 @@ export const GetCurrentUserResponse = zod.object({
   id: zod.number(),
   name: zod.string(),
   email: zod.string(),
-  role: zod.enum(["customer", "admin", "designer"]),
+  role: zod.enum(["customer", "admin", "designer", "staff"]),
   avatarUrl: zod.string().nullish(),
   createdAt: zod.string(),
 });
@@ -763,7 +763,7 @@ export const UpdateProfileResponse = zod.object({
   id: zod.number(),
   name: zod.string(),
   email: zod.string(),
-  role: zod.enum(["customer", "admin", "designer"]),
+  role: zod.enum(["customer", "admin", "designer", "staff"]),
   avatarUrl: zod.string().nullish(),
   createdAt: zod.string(),
 });
@@ -1055,7 +1055,7 @@ export const ListAdminUsersResponseItem = zod.object({
   id: zod.number(),
   name: zod.string(),
   email: zod.string(),
-  role: zod.enum(["customer", "admin", "designer"]),
+  role: zod.enum(["customer", "admin", "designer", "staff"]),
   avatarUrl: zod.string().nullish(),
   createdAt: zod.string(),
 });
@@ -1197,3 +1197,100 @@ export const ListServicePricingResponseItem = zod.object({
 export const ListServicePricingResponse = zod.array(
   ListServicePricingResponseItem,
 );
+
+/**
+ * @summary Get public site settings (banner etc.)
+ */
+export const GetSiteSettingsResponse = zod.object({
+  banner: zod
+    .object({
+      heading: zod.string().optional(),
+      subheading: zod.string().optional(),
+      badgeText: zod.string().optional(),
+      ctaText: zod.string().optional(),
+      ctaUrl: zod.string().optional(),
+      ctaSecondaryText: zod.string().optional(),
+      bgImageUrl: zod.string().optional(),
+    })
+    .optional(),
+});
+
+/**
+ * @summary Admin get all site settings
+ */
+export const GetAdminSettingsResponse = zod.object({
+  banner: zod
+    .object({
+      heading: zod.string().optional(),
+      subheading: zod.string().optional(),
+      badgeText: zod.string().optional(),
+      ctaText: zod.string().optional(),
+      ctaUrl: zod.string().optional(),
+      ctaSecondaryText: zod.string().optional(),
+      bgImageUrl: zod.string().optional(),
+    })
+    .optional(),
+});
+
+/**
+ * @summary Admin update site settings
+ */
+export const UpdateSiteSettingsBody = zod.object({
+  banner: zod
+    .object({
+      heading: zod.string().optional(),
+      subheading: zod.string().optional(),
+      badgeText: zod.string().optional(),
+      ctaText: zod.string().optional(),
+      ctaUrl: zod.string().optional(),
+      ctaSecondaryText: zod.string().optional(),
+      bgImageUrl: zod.string().optional(),
+    })
+    .optional(),
+});
+
+export const UpdateSiteSettingsResponse = zod.object({
+  banner: zod
+    .object({
+      heading: zod.string().optional(),
+      subheading: zod.string().optional(),
+      badgeText: zod.string().optional(),
+      ctaText: zod.string().optional(),
+      ctaUrl: zod.string().optional(),
+      ctaSecondaryText: zod.string().optional(),
+      bgImageUrl: zod.string().optional(),
+    })
+    .optional(),
+});
+
+/**
+ * @summary Admin update user role and permissions
+ */
+export const UpdateUserRoleParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateUserRoleBody = zod.object({
+  role: zod.enum(["customer", "admin", "designer", "staff"]),
+  permissions: zod
+    .object({
+      manageOrders: zod.boolean().optional(),
+      manageTemplates: zod.boolean().optional(),
+      manageCustomRequests: zod.boolean().optional(),
+      manageBlog: zod.boolean().optional(),
+      viewStats: zod.boolean().optional(),
+      manageUsers: zod.boolean().optional(),
+      manageVouchers: zod.boolean().optional(),
+    })
+    .optional(),
+});
+
+export const UpdateUserRoleResponse = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  email: zod.string(),
+  role: zod.enum(["customer", "admin", "designer", "staff"]),
+  permissions: zod.object({}).passthrough().nullish(),
+  avatarUrl: zod.string().nullish(),
+  createdAt: zod.string(),
+});

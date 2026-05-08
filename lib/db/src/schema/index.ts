@@ -8,3 +8,4 @@ export * from "./vouchers";
 export * from "./blog-posts";
 export * from "./wishlist";
 export * from "./service-pricing";
+export * from "./site-settings";

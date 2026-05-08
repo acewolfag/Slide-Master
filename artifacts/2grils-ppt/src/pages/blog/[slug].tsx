@@ -78,7 +78,7 @@ export default function BlogPost() {
           )}
 
           <div className="prose prose-slate max-w-none">
-            {post.contentVi.split("\n").map((line, i) => {
+            {(post.contentVi ?? "").split("\n").map((line: string, i: number) => {
               if (line.startsWith("## ")) return <h2 key={i} className="text-xl font-bold mt-6 mb-3">{line.slice(3)}</h2>;
               if (line.startsWith("# ")) return <h1 key={i} className="text-2xl font-bold mt-8 mb-4">{line.slice(2)}</h1>;
               if (line.trim() === "") return <br key={i} />;

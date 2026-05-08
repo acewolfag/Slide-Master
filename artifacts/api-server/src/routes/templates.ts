@@ -124,7 +124,7 @@ router.get("/templates/:id/reviews", async (req, res): Promise<void> => {
 
   const ratingDistribution = [5, 4, 3, 2, 1].map(s => ({
     stars: s,
-    count: reviews.filter(r => r.stars === s || r.rating === s).length,
+    count: reviews.filter(r => r.rating === s).length,
   }));
 
   res.json({

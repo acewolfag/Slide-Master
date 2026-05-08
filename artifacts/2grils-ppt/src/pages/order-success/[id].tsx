@@ -19,12 +19,12 @@ export default function OrderSuccess() {
   const { data: paymentStatus } = useGetOrderPaymentStatus(orderId, {
     query: { 
       enabled: !!orderId && order?.status === 'pending',
-      refetchInterval: (data) => {
-        // Poll every 3 seconds if status is still pending
-        if (!data) return 3000;
-        return data.status === 'pending' ? 3000 : false;
+      refetchInterval: (query: any) => {
+        const d = query?.state?.data ?? query;
+        if (!d) return 3000;
+        return d.status === 'pending' ? 3000 : false;
       }
-    }
+    } as any
   });
 
   const [timeLeft, setTimeLeft] = useState<number>(15 * 60); // 15 minutes in seconds

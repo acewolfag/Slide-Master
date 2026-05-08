@@ -1,8 +1,18 @@
-import { pgTable, text, serial, timestamp, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, pgEnum, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
-export const userRoleEnum = pgEnum("user_role", ["customer", "admin", "designer"]);
+export const userRoleEnum = pgEnum("user_role", ["customer", "admin", "designer", "staff"]);
+
+export type StaffPermissions = {
+  manageOrders?: boolean;
+  manageTemplates?: boolean;
+  manageCustomRequests?: boolean;
+  manageBlog?: boolean;
+  viewStats?: boolean;
+  manageUsers?: boolean;
+  manageVouchers?: boolean;
+};
 
 export const usersTable = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -10,6 +20,7 @@ export const usersTable = pgTable("users", {
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash"),
   role: userRoleEnum("role").notNull().default("customer"),
+  permissions: jsonb("permissions").$type<StaffPermissions>(),
   avatarUrl: text("avatar_url"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),

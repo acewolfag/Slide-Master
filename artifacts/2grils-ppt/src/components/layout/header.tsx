@@ -62,7 +62,8 @@ export function Header() {
           </Sheet>
 
           <Link href="/" className="flex items-center gap-2">
-            <span className="text-2xl font-black tracking-tight brand-gradient-text">2Grils.PPT</span>
+            <img src="/logo.jpg" alt="2Grils.PPT" className="h-9 w-9 rounded-full object-cover flex-shrink-0" />
+            <span className="text-xl font-black tracking-tight brand-gradient-text hidden sm:block">2Grils.PPT</span>
           </Link>
 
           <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
