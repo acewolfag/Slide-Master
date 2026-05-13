@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
-import { useGetCart, useGetCurrentUser, useLogout } from "@workspace/api-client-react";
+import { useGetCart, useGetCurrentUser, useLogout, resetSession } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import {
   DropdownMenu,
@@ -17,8 +18,9 @@ import {
 export function Header() {
   const [location, setLocation] = useLocation();
   const { data: cart } = useGetCart();
-  const { data: user, refetch: refetchUser } = useGetCurrentUser();
+  const { data: user } = useGetCurrentUser();
   const logout = useLogout();
+  const queryClient = useQueryClient();
   const { toast } = useToast();
 
   const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
@@ -31,13 +33,17 @@ export function Header() {
   };
 
   const handleLogout = () => {
+    // Clear local session state IMMEDIATELY so the UI reacts even if the
+    // server logout call fails (network down, server restart, etc.)
+    resetSession();
+    queryClient.clear();
+    // Fire-and-forget the server-side logout (no-op currently, but reserved
+    // for future session-revocation logic).
     logout.mutate(undefined, {
-      onSuccess: () => {
-        localStorage.removeItem("auth_token");
-        refetchUser();
+      onSettled: () => {
         setLocation("/");
         toast({ title: "Đã đăng xuất" });
-      }
+      },
     });
   };
 
@@ -87,7 +93,7 @@ export function Header() {
           <Link href="/cart">
             <Button variant="ghost" size="icon" className="relative">
               <ShoppingCart className="h-5 w-5" />
-              {cart && cart.items.length > 0 && (
+              {cart?.items && cart.items.length > 0 && (
                 <Badge className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-[10px]">
                   {cart.items.length}
                 </Badge>

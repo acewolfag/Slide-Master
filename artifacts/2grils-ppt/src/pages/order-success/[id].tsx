@@ -1,23 +1,63 @@
 import { Layout } from "@/components/layout";
 import { useParams, Link } from "wouter";
-import { useGetOrder, useGetOrderPaymentStatus, getGetOrderQueryKey } from "@workspace/api-client-react";
+import { useGetOrder, useGetOrderPaymentStatus, getGetOrderQueryKey, customFetch } from "@workspace/api-client-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, Download, AlertCircle, Clock, Loader2, ArrowRight } from "lucide-react";
+import { CheckCircle2, Download, AlertCircle, Clock, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
+import { downloadProtectedFile } from "@/lib/download";
+import { useToast } from "@/hooks/use-toast";
+
+interface PaymentInfo {
+  configured: boolean;
+  bankCode?: string;
+  accountNumber?: string;
+  accountName?: string;
+}
+
+const BANK_NAMES: Record<string, string> = {
+  VCB: "Vietcombank",
+  MB: "MB Bank",
+  MBBANK: "MB Bank",
+  TCB: "Techcombank",
+  ACB: "ACB",
+  BIDV: "BIDV",
+  TPB: "TPBank",
+  VPB: "VPBank",
+  STB: "Sacombank",
+  OCB: "OCB",
+  VIB: "VIB",
+  HDB: "HDBank",
+  SHB: "SHB",
+  MSB: "MSB",
+  EIB: "Eximbank",
+};
 
 export default function OrderSuccess() {
   const params = useParams();
   const orderId = Number(params.id);
   const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [downloadingIdx, setDownloadingIdx] = useState<number | null>(null);
+
+  const handleDownload = async (idx: number, link: { downloadUrl: string; titleVi: string }) => {
+    setDownloadingIdx(idx);
+    try {
+      await downloadProtectedFile(link.downloadUrl, `${link.titleVi}.pptx`);
+    } catch (err: any) {
+      toast({ title: "Không tải được file", description: err?.message, variant: "destructive" });
+    } finally {
+      setDownloadingIdx(null);
+    }
+  };
   
   const { data: order, isLoading } = useGetOrder(orderId, {
     query: { enabled: !!orderId, queryKey: getGetOrderQueryKey(orderId) }
   });
 
   const { data: paymentStatus } = useGetOrderPaymentStatus(orderId, {
-    query: { 
+    query: {
       enabled: !!orderId && order?.status === 'pending',
       refetchInterval: (query: any) => {
         const d = query?.state?.data ?? query;
@@ -25,6 +65,12 @@ export default function OrderSuccess() {
         return d.status === 'pending' ? 3000 : false;
       }
     } as any
+  });
+
+  const { data: paymentInfo } = useQuery<PaymentInfo>({
+    queryKey: ["payment-info"],
+    queryFn: () => customFetch<PaymentInfo>("/api/payment-info"),
+    staleTime: 60_000,
   });
 
   const [timeLeft, setTimeLeft] = useState<number>(15 * 60); // 15 minutes in seconds
@@ -124,9 +170,18 @@ export default function OrderSuccess() {
                       <span className="font-medium">{item.titleVi}</span>
                     </div>
                     {order.downloadLinks?.[idx] && (
-                      <Button size="sm" className="rounded-full" onClick={() => window.open(order.downloadLinks![idx], '_blank')}>
-                        <Download className="w-4 h-4 mr-2" />
-                        Tải xuống
+                      <Button
+                        size="sm"
+                        className="rounded-full"
+                        onClick={() => handleDownload(idx, order.downloadLinks![idx] as any)}
+                        disabled={downloadingIdx === idx}
+                      >
+                        {downloadingIdx === idx ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <Download className="w-4 h-4 mr-2" />
+                        )}
+                        {downloadingIdx === idx ? "Đang tải..." : "Tải xuống"}
                       </Button>
                     )}
                   </div>
@@ -211,19 +266,26 @@ export default function OrderSuccess() {
                   <div className="mt-6 space-y-4">
                     <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
                       <p className="text-sm text-slate-500 mb-1">Ngân hàng</p>
-                      <p className="font-semibold text-lg">Vietcombank</p>
+                      <p className="font-semibold text-lg">
+                        {paymentInfo?.bankCode
+                          ? BANK_NAMES[paymentInfo.bankCode.toUpperCase()] ?? paymentInfo.bankCode
+                          : "Đang tải..."}
+                      </p>
                     </div>
                     <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
                       <p className="text-sm text-slate-500 mb-1">Chủ tài khoản</p>
-                      <p className="font-semibold text-lg">2GRILS PPT CO LTD</p>
+                      <p className="font-semibold text-lg">{paymentInfo?.accountName ?? "—"}</p>
                     </div>
                     <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
                       <p className="text-sm text-slate-500 mb-1">Số tài khoản</p>
-                      <p className="font-bold text-xl tracking-wider">1029384756</p>
+                      <p className="font-bold text-xl tracking-wider">{paymentInfo?.accountNumber ?? "—"}</p>
                     </div>
                     <div className="bg-primary/5 p-4 rounded-xl border border-primary/20">
                       <p className="text-sm text-primary font-medium mb-1">Nội dung chuyển khoản (Bắt buộc)</p>
                       <p className="font-bold text-xl tracking-wider text-slate-900">{order.transferContent || `DH${order.id}`}</p>
+                      <p className="text-xs text-muted-foreground mt-1.5">
+                        Nội dung phải chính xác để hệ thống tự đối soát thanh toán.
+                      </p>
                     </div>
                   </div>
                 </div>

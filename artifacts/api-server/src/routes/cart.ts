@@ -99,10 +99,15 @@ router.post("/cart/voucher", async (req, res): Promise<void> => {
   if (voucher.usageCount >= voucher.usageLimit) { res.status(400).json({ error: "Mã giảm giá đã hết lượt dùng" }); return; }
 
   const cart = carts.get(cartId) ?? { items: [], appliedVoucher: null, discount: 0 };
+  if (cart.items.length === 0) {
+    res.status(400).json({ error: "Giỏ hàng trống — thêm sản phẩm trước khi áp mã giảm giá" });
+    return;
+  }
   const subtotal = cart.items.reduce((s, i) => s + i.price, 0);
 
   if (voucher.minOrderAmount && subtotal < parseFloat(String(voucher.minOrderAmount))) {
-    res.status(400).json({ error: `Đơn hàng tối thiểu ${voucher.minOrderAmount.toLocaleString()} VND` });
+    const minVnd = parseFloat(String(voucher.minOrderAmount));
+    res.status(400).json({ error: `Đơn hàng tối thiểu ${minVnd.toLocaleString("vi-VN")}đ để áp mã này` });
     return;
   }
 

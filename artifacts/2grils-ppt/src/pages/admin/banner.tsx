@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { useGetCurrentUser, useGetAdminSettings, useUpdateSiteSettings } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { AdminNav } from "./index";
+import { AdminLayout } from "./index";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -75,12 +75,21 @@ export default function AdminBanner() {
     try {
       const formData = new FormData();
       formData.append("files", file);
-      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+        headers: { Authorization: `Bearer ${localStorage.getItem("auth_token") ?? ""}` },
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error ?? `HTTP ${res.status}`);
+      }
       const data = await res.json();
       set("bgImageUrl", data.files[0].url);
       toast({ title: "Đã tải ảnh lên" });
-    } catch {
-      toast({ title: "Lỗi upload ảnh", variant: "destructive" });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Lỗi không xác định";
+      toast({ title: "Lỗi upload ảnh", description: msg, variant: "destructive" });
     } finally {
       setUploading(false);
     }
@@ -88,25 +97,37 @@ export default function AdminBanner() {
 
   if (!userLoading && (!user || !["admin", "staff"].includes((user as any).role))) return null;
 
+  const headerActions = (
+    <div className="flex gap-1.5 sm:gap-2">
+      <Button
+        variant="outline"
+        size="sm"
+        className="gap-1.5 h-9 px-2 sm:px-3"
+        onClick={() => window.open("/", "_blank")}
+      >
+        <Eye className="w-4 h-4" />
+        <span className="hidden sm:inline text-xs">Xem trước</span>
+      </Button>
+      <Button
+        size="sm"
+        className="brand-gradient border-none gap-1.5 h-9 px-2 sm:px-3"
+        onClick={handleSave}
+        disabled={updateSettings.isPending}
+      >
+        <Save className="w-4 h-4" />
+        <span className="hidden sm:inline text-xs">
+          {updateSettings.isPending ? "Đang lưu..." : saved ? "Đã lưu!" : "Lưu"}
+        </span>
+      </Button>
+    </div>
+  );
+
   return (
-    <div className="flex min-h-screen bg-slate-50">
-      <AdminNav />
-      <main className="flex-1 p-8 overflow-auto">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-extrabold">Tùy chỉnh Banner trang chủ</h1>
-            <p className="text-muted-foreground text-sm mt-1">Thay đổi nội dung hiển thị trên banner hero</p>
-          </div>
-          <div className="flex gap-3">
-            <Button variant="outline" onClick={() => window.open("/", "_blank")}>
-              <Eye className="w-4 h-4 mr-2" /> Xem trước
-            </Button>
-            <Button className="brand-gradient border-none" onClick={handleSave} disabled={updateSettings.isPending}>
-              <Save className="w-4 h-4 mr-2" />
-              {updateSettings.isPending ? "Đang lưu..." : saved ? "Đã lưu!" : "Lưu thay đổi"}
-            </Button>
-          </div>
-        </div>
+    <AdminLayout
+      title="Tùy chỉnh Banner"
+      description="Thay đổi nội dung hiển thị trên banner hero"
+      actions={headerActions}
+    >
 
         {isLoading ? (
           <div className="space-y-4">
@@ -221,7 +242,6 @@ export default function AdminBanner() {
             </div>
           </div>
         )}
-      </main>
-    </div>
+    </AdminLayout>
   );
 }

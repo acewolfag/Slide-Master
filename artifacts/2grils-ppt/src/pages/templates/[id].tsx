@@ -1,22 +1,137 @@
 import { Layout } from "@/components/layout";
 import { useParams, Link } from "wouter";
-import { 
-  useGetTemplate, 
+import { useState } from "react";
+import {
+  useGetTemplate,
   getGetTemplateQueryKey,
   useAddToCart,
   getGetCartQueryKey,
   useListTemplateReviews,
-  useGetRelatedTemplates
+  getListTemplateReviewsQueryKey,
+  useGetRelatedTemplates,
+  customFetch,
 } from "@workspace/api-client-react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Star, ShoppingCart, Download, Check, MonitorPlay, Layers, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { TemplateCard } from "@/components/template-card";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
+
+interface PublicCriteria {
+  id: number;
+  slug: string;
+  labelVi: string;
+  labelEn: string | null;
+}
+
+function ReviewForm({ templateId }: { templateId: number }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState("");
+  const [tags, setTags] = useState<Set<string>>(new Set());
+
+  const { data: criteria } = useQuery<PublicCriteria[]>({
+    queryKey: ["public", "review-criteria"],
+    queryFn: () => customFetch<PublicCriteria[]>("/api/review-criteria"),
+  });
+
+  const submit = useMutation({
+    mutationFn: () =>
+      customFetch(`/api/templates/${templateId}/reviews`, {
+        method: "POST",
+        body: JSON.stringify({ rating, comment, criteriaTags: Array.from(tags) }),
+      }),
+    onSuccess: () => {
+      toast({ title: "Cảm ơn bạn đã đánh giá!" });
+      setComment("");
+      setRating(5);
+      setTags(new Set());
+      queryClient.invalidateQueries({ queryKey: getListTemplateReviewsQueryKey(templateId) });
+    },
+    onError: (e: any) => toast({ title: "Lỗi", description: e?.message, variant: "destructive" }),
+  });
+
+  // Tags are independent from the comment — clicking just toggles selection.
+  // The comment textarea is fully user-controlled and never modified here.
+  const toggleTag = (slug: string) => {
+    setTags((prev) => {
+      const next = new Set(prev);
+      if (next.has(slug)) next.delete(slug);
+      else next.add(slug);
+      return next;
+    });
+  };
+
+  return (
+    <div className="mb-8 bg-slate-50 rounded-xl p-5 space-y-4">
+      <h3 className="font-semibold text-lg">Viết đánh giá của bạn</h3>
+      <div>
+        <div className="text-sm mb-1.5 text-slate-600">Số sao</div>
+        <div className="flex gap-1">
+          {[1, 2, 3, 4, 5].map((n) => (
+            <button
+              key={n}
+              type="button"
+              onClick={() => setRating(n)}
+              className="text-amber-500 hover:scale-110 transition-transform"
+              aria-label={`${n} sao`}
+            >
+              <Star className={`w-7 h-7 ${n <= rating ? "fill-current" : "text-slate-300"}`} />
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <Textarea
+        value={comment}
+        onChange={(e) => setComment(e.target.value)}
+        placeholder="Chia sẻ cảm nhận của bạn về template này..."
+        className="bg-white"
+        rows={4}
+      />
+
+      {criteria && criteria.length > 0 && (
+        <div>
+          <div className="text-sm mb-2 text-slate-600">
+            Tiêu chí <span className="text-xs text-slate-400">— chọn các điểm bạn ấn tượng (không bắt buộc)</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {criteria.map((c) => (
+              <button
+                key={c.slug}
+                type="button"
+                onClick={() => toggleTag(c.slug)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                  tags.has(c.slug)
+                    ? "bg-primary text-white border-primary"
+                    : "bg-white text-slate-700 border-slate-300 hover:border-primary"
+                }`}
+              >
+                {tags.has(c.slug) && <Check className="w-3 h-3 inline mr-1" />}
+                {c.labelVi}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <Button
+        onClick={() => submit.mutate()}
+        disabled={!comment.trim() || submit.isPending}
+        className="brand-gradient border-none"
+      >
+        {submit.isPending ? "Đang gửi..." : "Gửi đánh giá"}
+      </Button>
+    </div>
+  );
+}
 
 export default function TemplateDetail() {
   const params = useParams();
@@ -29,6 +144,13 @@ export default function TemplateDetail() {
   const { data: reviews } = useListTemplateReviews(id, {
     query: { enabled: !!id } as any
   });
+
+  const { data: publicCriteria } = useQuery<PublicCriteria[]>({
+    queryKey: ["public", "review-criteria"],
+    queryFn: () => customFetch<PublicCriteria[]>("/api/review-criteria"),
+  });
+  const criteriaLabel = (slug: string) =>
+    publicCriteria?.find((c) => c.slug === slug)?.labelVi ?? slug;
 
   const { data: related } = useGetRelatedTemplates(id, {
     query: { enabled: !!id } as any
@@ -232,28 +354,43 @@ export default function TemplateDetail() {
             </TabsContent>
             
             <TabsContent value="reviews">
-              {reviews?.items.length === 0 ? (
-                <p className="text-muted-foreground py-8">Chưa có đánh giá nào cho template này.</p>
-              ) : (
-                <div className="space-y-8 max-w-4xl">
-                  {reviews?.items.map(review => (
-                    <div key={review.id} className="border-b pb-6 last:border-0">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-semibold">{review.authorName}</span>
-                        <span className="text-sm text-muted-foreground">
-                          {new Date(review.createdAt).toLocaleDateString('vi-VN')}
-                        </span>
-                      </div>
-                      <div className="flex items-center text-yellow-500 mb-3">
-                        {[1,2,3,4,5].map(star => (
-                          <Star key={star} className={`w-4 h-4 ${star <= review.rating ? "fill-current" : "text-slate-300"}`} />
-                        ))}
-                      </div>
-                      <p className="text-slate-700">{review.comment}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <div className="max-w-4xl">
+                <ReviewForm templateId={id} />
+                {reviews?.items.length === 0 ? (
+                  <p className="text-muted-foreground py-8">Chưa có đánh giá nào cho template này.</p>
+                ) : (
+                  <div className="space-y-8">
+                    {reviews?.items.map((review) => {
+                      const tags = (review as any).criteriaTags as string[] | undefined;
+                      return (
+                        <div key={review.id} className="border-b pb-6 last:border-0">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="font-semibold">{review.authorName}</span>
+                            <span className="text-sm text-muted-foreground">
+                              {new Date(review.createdAt).toLocaleDateString('vi-VN')}
+                            </span>
+                          </div>
+                          <div className="flex items-center text-yellow-500 mb-3">
+                            {[1,2,3,4,5].map(star => (
+                              <Star key={star} className={`w-4 h-4 ${star <= review.rating ? "fill-current" : "text-slate-300"}`} />
+                            ))}
+                          </div>
+                          <p className="text-slate-700">{review.comment}</p>
+                          {tags && tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5 mt-3">
+                              {tags.map((t) => (
+                                <span key={t} className="text-xs bg-green-100 text-green-700 rounded-full px-2.5 py-1">
+                                  ✓ {criteriaLabel(t)}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </TabsContent>
           </Tabs>
         </div>

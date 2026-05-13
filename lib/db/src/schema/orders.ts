@@ -25,6 +25,8 @@ export const ordersTable = pgTable("orders", {
   discountAmount: numeric("discount_amount", { precision: 12, scale: 2 }).notNull().default("0"),
   expiresAt: timestamp("expires_at", { withTimezone: true }),
   paidAt: timestamp("paid_at", { withTimezone: true }),
+  sepayTransactionId: text("sepay_transaction_id").unique(),
+  webhookReceivedAt: timestamp("webhook_received_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

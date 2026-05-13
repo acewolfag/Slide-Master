@@ -14,6 +14,11 @@ export const templatesTable = pgTable("templates", {
   isFree: boolean("is_free").notNull().default(false),
   thumbnailUrl: text("thumbnail_url").notNull(),
   previewImages: text("preview_images").array().notNull().default([]),
+  /**
+   * Path tới file PPTX/PDF gốc mà khách sẽ tải sau khi thanh toán.
+   * Ví dụ: "/api/uploads/1778415471_marketing-plan.pptx".
+   */
+  fileUrl: text("file_url"),
   slideCount: integer("slide_count").notNull().default(20),
   aspectRatio: text("aspect_ratio").notNull().default("16:9"),
   categoryId: integer("category_id").notNull().references(() => categoriesTable.id),

@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { useListAdminPricing, useUpdateServicePlan, useGetCurrentUser } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { AdminNav } from "./index";
+import { AdminLayout } from "./index";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -181,32 +181,27 @@ export default function AdminPricing() {
   };
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
-      <AdminNav />
-      <main className="flex-1 p-8 overflow-auto">
-        <div className="mb-6">
-          <h1 className="text-2xl font-extrabold">Quản lý Bảng giá</h1>
-          <p className="text-muted-foreground text-sm mt-1">Chỉnh sửa giá và thông tin các gói thiết kế riêng</p>
+    <AdminLayout
+      title="Quản lý Bảng giá"
+      description="Chỉnh sửa giá và thông tin các gói thiết kế riêng"
+    >
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-6">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-80 rounded-2xl" />
+          ))}
         </div>
-
-        {isLoading ? (
-          <div className="grid md:grid-cols-3 gap-6">
-            {[1, 2, 3].map(i => <Skeleton key={i} className="h-80 rounded-xl" />)}
-          </div>
-        ) : (
-          <div className="grid md:grid-cols-3 gap-6">
-            {(plans as Plan[] | undefined)?.map(plan => (
-              <PricingCard key={plan.id} plan={plan} onSaved={handleSaved} />
-            ))}
-          </div>
-        )}
-
-        {!isLoading && (!plans || (plans as any[]).length === 0) && (
-          <div className="text-center py-20 text-muted-foreground">
-            Chưa có gói dịch vụ nào. Chạy lệnh seed để khởi tạo dữ liệu.
-          </div>
-        )}
-      </main>
-    </div>
+      ) : !plans || (plans as any[]).length === 0 ? (
+        <div className="bg-white rounded-2xl p-10 text-center text-muted-foreground border border-dashed border-border/60">
+          Chưa có gói dịch vụ nào. Chạy lệnh seed để khởi tạo dữ liệu.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-6">
+          {(plans as Plan[] | undefined)?.map((plan) => (
+            <PricingCard key={plan.id} plan={plan} onSaved={handleSaved} />
+          ))}
+        </div>
+      )}
+    </AdminLayout>
   );
 }

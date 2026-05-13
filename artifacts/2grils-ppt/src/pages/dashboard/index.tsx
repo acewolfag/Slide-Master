@@ -15,8 +15,9 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
-import { Download, Heart, Package, User, FileText, ExternalLink } from "lucide-react";
+import { Download, Heart, Package, User, FileText, ExternalLink, Loader2 } from "lucide-react";
 import { TemplateCard } from "@/components/template-card";
+import { downloadProtectedFile } from "@/lib/download";
 
 const ORDER_STATUS_MAP: Record<string, { label: string; color: string }> = {
   pending: { label: "Chờ thanh toán", color: "bg-yellow-100 text-yellow-700" },
@@ -43,6 +44,18 @@ export default function Dashboard() {
 
   const [name, setName] = useState("");
   const [profileSaving, setProfileSaving] = useState(false);
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
+
+  const handleLibraryDownload = async (item: { templateId: number; titleVi: string; downloadUrl: string }) => {
+    setDownloadingId(item.templateId);
+    try {
+      await downloadProtectedFile(item.downloadUrl, `${item.titleVi}.pptx`);
+    } catch (err: any) {
+      toast({ title: "Không tải được file", description: err?.message, variant: "destructive" });
+    } finally {
+      setDownloadingId(null);
+    }
+  };
 
   if (userLoading) {
     return <Layout><div className="container mx-auto px-4 py-16"><Skeleton className="w-full h-96 rounded-xl" /></div></Layout>;
@@ -111,8 +124,18 @@ export default function Dashboard() {
                         <img src={item.thumbnailUrl} alt={item.titleVi} className="w-full aspect-[16/9] object-cover" />
                         <CardContent className="p-4">
                           <h3 className="font-semibold text-sm line-clamp-1 mb-2">{item.titleVi}</h3>
-                          <Button size="sm" className="w-full brand-gradient border-none" asChild>
-                            <a href={item.downloadUrl} download><Download className="w-4 h-4 mr-2" />Tải xuống</a>
+                          <Button
+                            size="sm"
+                            className="w-full brand-gradient border-none"
+                            onClick={() => handleLibraryDownload(item)}
+                            disabled={downloadingId === item.templateId}
+                          >
+                            {downloadingId === item.templateId ? (
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            ) : (
+                              <Download className="w-4 h-4 mr-2" />
+                            )}
+                            {downloadingId === item.templateId ? "Đang tải..." : "Tải xuống"}
                           </Button>
                         </CardContent>
                       </Card>
@@ -161,16 +184,20 @@ export default function Dashboard() {
               ) : (
                 <div className="space-y-3">
                   {(customRequests as any[])?.map(req => (
-                    <Card key={req.id} className="border-border/50">
-                      <CardContent className="p-4 flex items-center justify-between">
-                        <div>
-                          <p className="font-mono text-sm font-semibold">{req.requestId}</p>
-                          <p className="text-xs text-muted-foreground">{req.slideType} · {req.slideCount} slides</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">Deadline: {req.deadline}</p>
-                        </div>
-                        <Badge variant="secondary">{CUSTOM_STATUS_MAP[req.status] ?? req.status}</Badge>
-                      </CardContent>
-                    </Card>
+                    <Link key={req.id} href={`/custom-requests/${req.requestId}`}>
+                      <a className="block">
+                        <Card className="border-border/50 hover:border-primary/40 hover:shadow-sm transition cursor-pointer">
+                          <CardContent className="p-4 flex items-center justify-between">
+                            <div>
+                              <p className="font-mono text-sm font-semibold">{req.requestId}</p>
+                              <p className="text-xs text-muted-foreground">{req.slideType} · {req.slideCount} slides</p>
+                              <p className="text-xs text-muted-foreground mt-0.5">Deadline: {req.deadline}</p>
+                            </div>
+                            <Badge variant="secondary">{CUSTOM_STATUS_MAP[req.status] ?? req.status}</Badge>
+                          </CardContent>
+                        </Card>
+                      </a>
+                    </Link>
                   ))}
                 </div>
               )}

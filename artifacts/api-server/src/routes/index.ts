@@ -11,6 +11,7 @@ import blogRouter from "./blog";
 import adminRouter from "./admin";
 import uploadRouter from "./upload";
 import pricingRouter from "./pricing";
+import webhooksRouter from "./webhooks";
 
 const router: IRouter = Router();
 
@@ -26,5 +27,6 @@ router.use(blogRouter);
 router.use(adminRouter);
 router.use(categoriesRouter);
 router.use(templatesRouter);
+router.use(webhooksRouter);
 
 export default router;

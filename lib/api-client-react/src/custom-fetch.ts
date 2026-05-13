@@ -43,6 +43,24 @@ function _saveCartId(id: string): void {
 _initCartId();
 
 /**
+ * Clear all client-side session state. Call from the logout flow to ensure
+ * the next request goes out as an anonymous session — no auth token, no
+ * carry-over cart-id, no in-memory cart reference.
+ *
+ * Does NOT touch TanStack Query cache; the caller should additionally do
+ * `queryClient.clear()` to drop cached responses tied to the old session.
+ */
+export function resetSession(): void {
+  _cartId = null;
+  try {
+    if (typeof localStorage !== "undefined") {
+      localStorage.removeItem("auth_token");
+      localStorage.removeItem("cart_id");
+    }
+  } catch { /* ignore */ }
+}
+
+/**
  * Set a base URL that is prepended to every relative request URL
  * (i.e. paths that start with `/`).
  *
@@ -400,6 +418,27 @@ export async function customFetch<T = unknown>(
   }
 
   if (!response.ok) {
+    // Auto-handle expired/invalid token: clear and redirect to /login.
+    // Skip for auth endpoints (login 401 is "wrong creds") and when already
+    // on /login (avoid redirect loop).
+    if (response.status === 401) {
+      const url = requestInfo.url;
+      const isAuthEndpoint = /\/auth\/(login|register|reset-password)\b/.test(url);
+      if (!isAuthEndpoint && typeof window !== "undefined" && typeof localStorage !== "undefined") {
+        const hadToken = !!localStorage.getItem("auth_token");
+        if (hadToken) {
+          try {
+            localStorage.removeItem("auth_token");
+          } catch { /* ignore */ }
+          const path = window.location.pathname;
+          const onLoginPage = /^\/login(\/|$)/.test(path);
+          if (!onLoginPage) {
+            const next = encodeURIComponent(window.location.pathname + window.location.search);
+            window.location.href = `/login?expired=1&next=${next}`;
+          }
+        }
+      }
+    }
     const errorData = await parseErrorBody(response, method);
     throw new ApiError(response, errorData, requestInfo);
   }

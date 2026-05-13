@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { templatesTable, categoriesTable, reviewsTable } from "@workspace/db";
+import { templatesTable, categoriesTable, reviewsTable, reviewCriteriaTable } from "@workspace/db";
 import { eq, like, and, gte, lte, desc, asc, sql, ilike, or } from "drizzle-orm";
 
 const router = Router();
@@ -137,6 +137,7 @@ router.get("/templates/:id/reviews", async (req, res): Promise<void> => {
       imageUrl: r.imageUrl,
       isVerifiedPurchase: r.isVerifiedPurchase,
       isHidden: r.isHidden,
+      criteriaTags: r.criteriaTags ?? [],
       createdAt: r.createdAt.toISOString(),
     })),
     avgRating: Math.round(avgRating * 10) / 10,
@@ -145,13 +146,38 @@ router.get("/templates/:id/reviews", async (req, res): Promise<void> => {
   });
 });
 
+// Public: active criteria that the review form should offer to users.
+router.get("/review-criteria", async (_req, res): Promise<void> => {
+  const rows = await db
+    .select()
+    .from(reviewCriteriaTable)
+    .where(eq(reviewCriteriaTable.isActive, true))
+    .orderBy(asc(reviewCriteriaTable.sortOrder), asc(reviewCriteriaTable.id));
+  res.json(rows.map((c) => ({ id: c.id, slug: c.slug, labelVi: c.labelVi, labelEn: c.labelEn })));
+});
+
 router.post("/templates/:id/reviews", async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
-  const { rating, comment, imageUrl } = req.body;
+  const { rating, comment, imageUrl, criteriaTags } = req.body;
   if (!rating || !comment) { res.status(400).json({ error: "Rating and comment are required" }); return; }
+
+  // Whitelist incoming criteria slugs against active criteria — anything
+  // unknown gets silently dropped so users cannot inject arbitrary tags.
+  let validatedCriteria: string[] = [];
+  if (Array.isArray(criteriaTags) && criteriaTags.length > 0) {
+    const incoming = criteriaTags.filter((s: unknown): s is string => typeof s === "string");
+    if (incoming.length > 0) {
+      const active = await db
+        .select({ slug: reviewCriteriaTable.slug })
+        .from(reviewCriteriaTable)
+        .where(eq(reviewCriteriaTable.isActive, true));
+      const allowed = new Set(active.map((a) => a.slug));
+      validatedCriteria = incoming.filter((s) => allowed.has(s));
+    }
+  }
 
   const [review] = await db.insert(reviewsTable).values({
     templateId: id,
@@ -161,6 +187,7 @@ router.post("/templates/:id/reviews", async (req, res): Promise<void> => {
     imageUrl: imageUrl ?? null,
     isVerifiedPurchase: false,
     isHidden: false,
+    criteriaTags: validatedCriteria,
   }).returning();
 
   res.status(201).json({
@@ -172,6 +199,7 @@ router.post("/templates/:id/reviews", async (req, res): Promise<void> => {
     imageUrl: review.imageUrl,
     isVerifiedPurchase: review.isVerifiedPurchase,
     isHidden: review.isHidden,
+    criteriaTags: review.criteriaTags ?? [],
     createdAt: review.createdAt.toISOString(),
   });
 });

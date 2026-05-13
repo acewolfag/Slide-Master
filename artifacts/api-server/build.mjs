@@ -100,6 +100,12 @@ async function buildAll() {
       "puppeteer",
       "puppeteer-core",
       "electron",
+      "node-stream-zip",
+      "node-unrar-js",
+      "pdf-to-png-converter",
+      "@napi-rs/canvas",
+      "@napi-rs/canvas-*",
+      "pdfjs-dist",
     ],
     sourcemap: "linked",
     plugins: [

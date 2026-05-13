@@ -6,7 +6,7 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { AdminNav } from "./index";
+import { AdminLayout } from "./index";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -21,6 +21,8 @@ type TemplateForm = {
   titleVi: string; titleEn: string; slug: string;
   price: number; isFree: boolean;
   thumbnailUrl: string; previewImages: string[];
+  /** File PPTX gốc khách sẽ tải sau khi paid. */
+  fileUrl: string;
   slideCount: number; aspectRatio: string;
   categoryId: number; style: string;
   descriptionVi: string; descriptionEn: string;
@@ -33,6 +35,7 @@ const EMPTY: TemplateForm = {
   titleVi: "", titleEn: "", slug: "",
   price: 99000, isFree: false,
   thumbnailUrl: "", previewImages: [],
+  fileUrl: "",
   slideCount: 20, aspectRatio: "16:9",
   categoryId: 1, style: "Corporate",
   descriptionVi: "", descriptionEn: "",
@@ -47,9 +50,10 @@ function slugify(str: string) {
 }
 
 function TemplateFormSheet({
-  editing, onClose, categories,
+  editing, onClose, categories, prefill,
 }: {
   editing: any | "new"; onClose: () => void; categories: any[];
+  prefill?: Partial<TemplateForm>;
 }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -58,11 +62,13 @@ function TemplateFormSheet({
   const isNew = editing === "new";
 
   const [form, setForm] = useState<TemplateForm>(
-    isNew ? EMPTY : {
+    isNew ? { ...EMPTY, ...(prefill ?? {}) } : {
       titleVi: editing.titleVi ?? "", titleEn: editing.titleEn ?? "",
       slug: editing.slug ?? "", price: editing.price ?? 99000,
       isFree: editing.isFree ?? false, thumbnailUrl: editing.thumbnailUrl ?? "",
-      previewImages: editing.previewImages ?? [], slideCount: editing.slideCount ?? 20,
+      previewImages: editing.previewImages ?? [],
+      fileUrl: editing.fileUrl ?? "",
+      slideCount: editing.slideCount ?? 20,
       aspectRatio: editing.aspectRatio ?? "16:9", categoryId: editing.categoryId ?? 1,
       style: editing.style ?? "Corporate", descriptionVi: editing.descriptionVi ?? "",
       descriptionEn: editing.descriptionEn ?? "", features: editing.features ?? [],
@@ -75,6 +81,8 @@ function TemplateFormSheet({
   const [newFeature, setNewFeature] = useState("");
   const thumbRef = useRef<HTMLInputElement>(null);
   const previewRef = useRef<HTMLInputElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploadingFile, setUploadingFile] = useState(false);
 
   const set = <K extends keyof TemplateForm>(k: K, v: TemplateForm[K]) =>
     setForm(f => ({ ...f, [k]: v }));
@@ -82,8 +90,15 @@ function TemplateFormSheet({
   const uploadImage = async (file: File): Promise<string> => {
     const formData = new FormData();
     formData.append("files", file);
-    const res = await fetch("/api/upload", { method: "POST", body: formData });
-    if (!res.ok) throw new Error("Upload thất bại");
+    const res = await fetch("/api/upload", {
+      method: "POST",
+      body: formData,
+      headers: { Authorization: `Bearer ${localStorage.getItem("auth_token") ?? ""}` },
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error ?? `Upload thất bại (HTTP ${res.status})`);
+    }
     const data = await res.json();
     return data.files[0].url as string;
   };
@@ -112,6 +127,68 @@ function TemplateFormSheet({
     finally { setUploadingPreview(false); if (previewRef.current) previewRef.current.value = ""; }
   };
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingFile(true);
+    try {
+      const url = await uploadImage(file);
+      set("fileUrl", url);
+      toast({ title: "Đã upload file gốc", description: file.name });
+
+      // For PPTX files, ask the server to render thumbnail + per-slide previews
+      // + count slides, then auto-fill the form. Errors here are non-fatal —
+      // admin can still fill those fields manually.
+      if (/\.pptx?$/i.test(file.name)) {
+        try {
+          const res = await fetch("/api/admin/templates/process-pptx", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${localStorage.getItem("auth_token") ?? ""}`,
+            },
+            body: JSON.stringify({ pptxUrl: url }),
+          });
+          if (res.ok) {
+            const data = (await res.json()) as {
+              thumbnailUrl: string | null;
+              previewImages: string[];
+              slideCount: number | null;
+              warnings: string[];
+            };
+            setForm((f) => ({
+              ...f,
+              thumbnailUrl: data.thumbnailUrl ?? f.thumbnailUrl,
+              previewImages: data.previewImages.length > 0 ? data.previewImages : f.previewImages,
+              slideCount: data.slideCount ?? f.slideCount,
+            }));
+            const desc =
+              data.warnings.length > 0
+                ? data.warnings.join("; ").slice(0, 180)
+                : `${data.previewImages.length} slide đã sinh preview`;
+            toast({ title: "Đã sinh thumbnail + preview", description: desc });
+          } else {
+            const err = await res.json().catch(() => ({}));
+            toast({
+              title: "Không sinh được preview tự động",
+              description: err.error ?? `HTTP ${res.status}`,
+              variant: "destructive",
+            });
+          }
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : "Lỗi không xác định";
+          toast({ title: "Không sinh được preview tự động", description: msg, variant: "destructive" });
+        }
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Lỗi không xác định";
+      toast({ title: "Lỗi upload file", description: msg, variant: "destructive" });
+    } finally {
+      setUploadingFile(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
   const handleSave = () => {
     const payload = {
       titleVi: form.titleVi, titleEn: form.titleEn,
@@ -119,6 +196,7 @@ function TemplateFormSheet({
       price: form.isFree ? 0 : form.price,
       isFree: form.isFree, thumbnailUrl: form.thumbnailUrl,
       previewImages: form.previewImages,
+      fileUrl: form.fileUrl || null,
       slideCount: form.slideCount, aspectRatio: form.aspectRatio,
       categoryId: form.categoryId, style: form.style,
       descriptionVi: form.descriptionVi, descriptionEn: form.descriptionEn,
@@ -156,7 +234,7 @@ function TemplateFormSheet({
           {/* Basic Info */}
           <div className="space-y-4">
             <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">Thông tin cơ bản</h3>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label>Tiêu đề (VI) *</Label>
                 <Input value={form.titleVi} onChange={e => {
@@ -173,7 +251,7 @@ function TemplateFormSheet({
               <Label>Slug (URL)</Label>
               <Input value={form.slug} onChange={e => set("slug", e.target.value)} placeholder="auto-generated-from-title" className="mt-1.5 font-mono text-sm" />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label>Danh mục *</Label>
                 <Select value={String(form.categoryId)} onValueChange={v => set("categoryId", Number(v))}>
@@ -217,7 +295,7 @@ function TemplateFormSheet({
           {/* Specs */}
           <div className="space-y-4 border-t pt-5">
             <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">Thông số kỹ thuật</h3>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label>Số lượng slide</Label>
                 <Input type="number" value={form.slideCount} onChange={e => set("slideCount", Number(e.target.value))} className="mt-1.5" min={1} />
@@ -254,6 +332,66 @@ function TemplateFormSheet({
             )}
           </div>
 
+          {/* File gốc — khách paid sẽ download cái này */}
+          <div className="space-y-3 border-t pt-5">
+            <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">
+              File gốc khách tải
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              File PPTX/PDF khách sẽ download sau khi thanh toán thành công.
+              <strong> Bắt buộc phải có nếu template KHÔNG miễn phí.</strong>
+            </p>
+            <div>
+              <Label>URL file gốc</Label>
+              <Input
+                value={form.fileUrl}
+                onChange={(e) => set("fileUrl", e.target.value)}
+                placeholder="/api/uploads/template.pptx hoặc https://..."
+                className="mt-1.5"
+              />
+            </div>
+            <div className="flex items-center gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={uploadingFile}
+                onClick={() => fileRef.current?.click()}
+              >
+                {uploadingFile ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
+                {uploadingFile ? "Đang tải..." : "Upload file gốc"}
+              </Button>
+              <span className="text-xs text-muted-foreground">PPTX / PPT / PDF, tối đa 20 MB</span>
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".pptx,.ppt,.pdf,.doc,.docx"
+                className="hidden"
+                onChange={handleFileUpload}
+              />
+            </div>
+            {form.fileUrl && (
+              <div className="text-xs bg-emerald-50 border border-emerald-200 rounded-lg p-3 flex items-center justify-between">
+                <a href={form.fileUrl} target="_blank" rel="noreferrer" className="text-emerald-700 underline truncate flex-1 mr-2">
+                  ✓ {form.fileUrl}
+                </a>
+                <button
+                  type="button"
+                  onClick={() => set("fileUrl", "")}
+                  className="text-emerald-700 hover:text-red-600"
+                  title="Xóa link"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+            {!form.fileUrl && !form.isFree && (
+              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
+                ⚠️ Template có giá nhưng chưa có file gốc — khách paid sẽ KHÔNG tải được.
+              </p>
+            )}
+          </div>
+
           {/* Preview Images */}
           <div className="space-y-4 border-t pt-5">
             <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">Hình ảnh từng slide (Preview)</h3>
@@ -264,7 +402,7 @@ function TemplateFormSheet({
             </Button>
             <input ref={previewRef} type="file" accept="image/*" multiple className="hidden" onChange={handlePreviewUpload} />
             {form.previewImages.length > 0 && (
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {form.previewImages.map((url, i) => (
                   <div key={i} className="relative group">
                     <img src={url} alt={`Preview ${i + 1}`} className="w-full aspect-video object-cover rounded-lg border" />
@@ -349,7 +487,7 @@ function TemplateFormSheet({
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex gap-6">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-6">
               <label className="flex items-center gap-2 cursor-pointer text-sm">
                 <input type="checkbox" checked={form.isFeatured} onChange={e => set("isFeatured", e.target.checked)} className="accent-primary w-4 h-4 rounded" />
                 Template nổi bật
@@ -362,7 +500,7 @@ function TemplateFormSheet({
           </div>
         </div>
 
-        <div className="sticky bottom-0 bg-white border-t px-6 py-4 flex gap-3">
+        <div className="sticky bottom-0 bg-white border-t px-4 sm:px-6 py-4 flex gap-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
           <Button variant="outline" onClick={onClose} className="flex-1">Hủy</Button>
           <Button className="brand-gradient border-none flex-1" onClick={handleSave} disabled={isPending || !form.titleVi || !form.thumbnailUrl}>
             {isPending ? "Đang lưu..." : isNew ? "Tạo Template" : "Lưu thay đổi"}
@@ -382,6 +520,8 @@ export default function AdminTemplates() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [editing, setEditing] = useState<any | "new" | null>(null);
+  const [prefill, setPrefill] = useState<Partial<TemplateForm> | null>(null);
+  const [archiveOpen, setArchiveOpen] = useState(false);
 
   useEffect(() => {
     if (!userLoading && (!user || !["admin", "staff"].includes((user as any).role))) setLocation("/login");
@@ -391,7 +531,7 @@ export default function AdminTemplates() {
 
   const handleDelete = (id: number, title: string) => {
     if (!confirm(`Xóa template "${title}"?`)) return;
-    deleteTemplate.mutate({ templateId: id } as any, {
+    deleteTemplate.mutate({ id } as any, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListAdminTemplatesQueryKey() });
         toast({ title: "Đã xóa template" });
@@ -400,22 +540,108 @@ export default function AdminTemplates() {
     });
   };
 
-  return (
-    <div className="flex min-h-screen bg-slate-50">
-      <AdminNav />
-      <main className="flex-1 p-8 overflow-auto">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-extrabold">Quản lý Templates</h1>
-            <p className="text-muted-foreground text-sm mt-1">Thêm, chỉnh sửa và quản lý toàn bộ template</p>
-          </div>
-          <Button className="brand-gradient border-none gap-2" onClick={() => setEditing("new")}>
-            <Plus className="w-4 h-4" /> Thêm template
-          </Button>
-        </div>
+const list = (templates as any[]) ?? [];
+  const headerActions = (
+    <div className="flex gap-1.5 sm:gap-2">
+      <Button
+        variant="outline"
+        size="sm"
+        className="gap-1.5 h-9 px-2 sm:px-3"
+        onClick={() => setArchiveOpen(true)}
+      >
+        <Upload className="w-4 h-4" />
+        <span className="hidden sm:inline text-xs">Upload archive</span>
+      </Button>
+      <Button
+        size="sm"
+        className="brand-gradient border-none gap-1.5 h-9 px-2 sm:px-3"
+        onClick={() => { setPrefill(null); setEditing("new"); }}
+      >
+        <Plus className="w-4 h-4" />
+        <span className="hidden sm:inline text-xs">Thêm</span>
+      </Button>
+    </div>
+  );
 
-        {isLoading ? <Skeleton className="w-full h-64 rounded-xl" /> : (
-          <div className="bg-white rounded-xl border border-border/50 overflow-hidden">
+  return (
+    <AdminLayout
+      title="Quản lý Templates"
+      description="Thêm, chỉnh sửa và quản lý toàn bộ template"
+      actions={headerActions}
+    >
+      {isLoading ? (
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-24 rounded-2xl" />
+          ))}
+        </div>
+      ) : list.length === 0 ? (
+        <div className="bg-white rounded-2xl p-10 text-center text-muted-foreground border border-dashed border-border/60">
+          Chưa có template nào. Nhấn "Thêm" để bắt đầu.
+        </div>
+      ) : (
+        <>
+          <div className="md:hidden space-y-3">
+            {list.map((t) => (
+              <div
+                key={t.id}
+                className="bg-white rounded-2xl border border-border/50 p-3 flex items-center gap-3 active:scale-[0.99] transition-transform"
+              >
+                <img
+                  src={t.thumbnailUrl}
+                  alt=""
+                  className="w-20 h-14 object-cover rounded-lg flex-shrink-0 bg-slate-100"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm line-clamp-1">{t.titleVi}</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    {t.slideCount} slides · {t.categoryName}
+                  </p>
+                  <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                    <span className="text-sm font-bold text-primary">
+                      {t.isFree ? "Miễn phí" : `${Number(t.price).toLocaleString("vi-VN")}đ`}
+                    </span>
+                    <span
+                      className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                        t.status === "active"
+                          ? "bg-green-100 text-green-700"
+                          : "bg-yellow-100 text-yellow-700"
+                      }`}
+                    >
+                      {t.status === "active" ? "Hoạt động" : "Nháp"}
+                    </span>
+                    {t.isBestSeller && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-yellow-500 text-white font-medium">
+                        Best
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1 flex-shrink-0">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-9 w-9 text-muted-foreground hover:text-primary"
+                    onClick={() => setEditing(t)}
+                    aria-label="Sửa"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-9 w-9 text-muted-foreground hover:text-destructive"
+                    onClick={() => handleDelete(t.id, t.titleVi)}
+                    aria-label="Xoá"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="hidden md:block bg-white rounded-2xl border border-border/50 overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b">
                 <tr>
@@ -425,7 +651,7 @@ export default function AdminTemplates() {
                 </tr>
               </thead>
               <tbody>
-                {(templates as any[])?.map(t => (
+                {list.map((t) => (
                   <tr key={t.id} className="border-b last:border-0 hover:bg-slate-50">
                     <td className="px-4 py-3">
                       <img src={t.thumbnailUrl} alt="" className="w-16 h-10 object-cover rounded" />
@@ -462,20 +688,252 @@ export default function AdminTemplates() {
                 ))}
               </tbody>
             </table>
-            {(templates as any[])?.length === 0 && (
-              <p className="text-center py-12 text-muted-foreground">Chưa có template nào. Nhấn "Thêm template" để bắt đầu.</p>
-            )}
           </div>
-        )}
-      </main>
+        </>
+      )}
 
       {editing !== null && (
         <TemplateFormSheet
           editing={editing}
-          onClose={() => setEditing(null)}
+          onClose={() => { setEditing(null); setPrefill(null); }}
           categories={(categories as any[]) ?? []}
+          prefill={prefill ?? undefined}
         />
       )}
-    </div>
+
+      {archiveOpen && (
+        <ArchiveUploadDialog
+          onClose={() => setArchiveOpen(false)}
+          onUseExtracted={(prefillData) => {
+            setPrefill(prefillData);
+            setEditing("new");
+            setArchiveOpen(false);
+          }}
+        />
+      )}
+    </AdminLayout>
+  );
+}
+
+interface ExtractedFile {
+  name: string;
+  suggestedTitle: string;
+  pptxUrl: string;
+  thumbnailUrl: string | null;
+  previewImages: string[];
+  pdfUrl: string | null;
+  slideCount: number | null;
+}
+
+interface ArchiveResult {
+  archiveName: string;
+  files: ExtractedFile[];
+  warnings: string[];
+}
+
+function archiveSlugify(s: string): string {
+  return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .replace(/đ/g, "d").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
+function ArchiveUploadDialog({
+  onClose,
+  onUseExtracted,
+}: {
+  onClose: () => void;
+  onUseExtracted: (prefill: Partial<TemplateForm>) => void;
+}) {
+  const { toast } = useToast();
+  const [uploading, setUploading] = useState(false);
+  const [result, setResult] = useState<ArchiveResult | null>(null);
+  const [customThumb, setCustomThumb] = useState<Record<string, string>>({});
+  const fileRef = useRef<HTMLInputElement>(null);
+  const customRef = useRef<HTMLInputElement>(null);
+  const [activeFile, setActiveFile] = useState<string | null>(null);
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/admin/templates/upload-archive", {
+        method: "POST",
+        body: fd,
+        headers: { Authorization: `Bearer ${localStorage.getItem("auth_token") ?? ""}` },
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error ?? `HTTP ${res.status}`);
+      }
+      const data = (await res.json()) as ArchiveResult;
+      setResult(data);
+      if (data.warnings.length > 0) {
+        toast({
+          title: "Upload xong (có cảnh báo)",
+          description: data.warnings.join("; ").slice(0, 200),
+        });
+      } else {
+        toast({ title: `Đã giải nén ${data.files.length} file PPTX` });
+      }
+    } catch (err: any) {
+      toast({ title: "Lỗi upload", description: err?.message, variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleCustomThumbUpload = async (key: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    const fd = new FormData();
+    fd.append("files", file);
+    const res = await fetch("/api/upload", {
+      method: "POST",
+      body: fd,
+      headers: { Authorization: `Bearer ${localStorage.getItem("auth_token") ?? ""}` },
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      toast({
+        title: "Lỗi upload thumbnail",
+        description: err.error ?? `HTTP ${res.status}`,
+        variant: "destructive",
+      });
+      return;
+    }
+    const data = await res.json();
+    setCustomThumb((prev) => ({ ...prev, [key]: data.files[0].url }));
+  };
+
+  const handleUse = (f: ExtractedFile) => {
+    const thumb = customThumb[f.name] ?? f.thumbnailUrl ?? "";
+    onUseExtracted({
+      titleVi: f.suggestedTitle,
+      titleEn: f.suggestedTitle,
+      slug: archiveSlugify(f.suggestedTitle),
+      thumbnailUrl: thumb,
+      previewImages: f.previewImages ?? [],
+      fileUrl: f.pptxUrl,
+      slideCount: f.slideCount ?? 20,
+    });
+  };
+
+  return (
+    <Sheet open onOpenChange={(o) => !o && onClose()}>
+      <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle>Upload Template Archive</SheetTitle>
+        </SheetHeader>
+        <div className="space-y-5 mt-6">
+          <div className="bg-slate-50 rounded-xl p-5 border border-dashed border-border">
+            <p className="text-sm font-medium mb-2">Chọn file .zip hoặc .rar (tối đa 200 MB)</p>
+            <p className="text-xs text-muted-foreground mb-3">
+              Hệ thống sẽ giải nén, tìm các file .pptx, gợi ý tên & sinh thumbnail (cần LibreOffice).
+            </p>
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".zip,.rar"
+              onChange={handleFile}
+              className="hidden"
+            />
+            <Button onClick={() => fileRef.current?.click()} disabled={uploading} className="gap-2">
+              {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+              {uploading ? "Đang xử lý..." : "Chọn file"}
+            </Button>
+          </div>
+
+          {result && result.warnings.length > 0 && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-xs text-yellow-800 space-y-1">
+              {result.warnings.map((w, i) => (
+                <p key={i}>⚠️ {w}</p>
+              ))}
+            </div>
+          )}
+
+          {result && result.files.length === 0 && (
+            <div className="bg-white rounded-xl p-6 text-center text-sm text-muted-foreground border">
+              Không tìm thấy file .pptx nào trong archive
+            </div>
+          )}
+
+          {result && result.files.length > 0 && (
+            <div className="space-y-3">
+              <p className="text-sm font-semibold">Tìm thấy {result.files.length} file PPTX:</p>
+              {result.files.map((f) => {
+                const displayThumb = customThumb[f.name] ?? f.thumbnailUrl;
+                return (
+                  <div key={f.name} className="bg-white rounded-xl border border-border/50 p-4 space-y-3">
+                    <div className="flex gap-3">
+                      <div className="w-32 h-20 bg-slate-100 rounded flex-shrink-0 overflow-hidden flex items-center justify-center">
+                        {displayThumb ? (
+                          <img src={displayThumb} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <ImageIcon className="w-6 h-6 text-muted-foreground" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-muted-foreground truncate">{f.name}</p>
+                        <p className="font-semibold text-sm">{f.suggestedTitle}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {f.slideCount ? `${f.slideCount} slides` : "Số slides chưa rõ"}
+                        </p>
+                        <div className="flex gap-2 mt-1.5">
+                          {f.pdfUrl && (
+                            <a
+                              href={f.pdfUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-xs text-primary underline"
+                            >
+                              Xem PDF preview
+                            </a>
+                          )}
+                          <a
+                            href={f.pptxUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-xs text-primary underline"
+                          >
+                            Tải PPTX
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <input
+                        ref={activeFile === f.name ? customRef : null}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => handleCustomThumbUpload(f.name, e)}
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setActiveFile(f.name);
+                          setTimeout(() => customRef.current?.click(), 50);
+                        }}
+                      >
+                        <ImageIcon className="w-3.5 h-3.5 mr-1" />
+                        {customThumb[f.name] ? "Đổi thumbnail" : "Upload thumbnail"}
+                      </Button>
+                      <Button size="sm" onClick={() => handleUse(f)} className="ml-auto">
+                        Tạo template từ file này
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 }

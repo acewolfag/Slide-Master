@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "hello": "tsx ./src/hello.ts",
-    "seed": "tsx ./src/seed.ts",
+    "seed": "tsx --env-file=../.env ./src/seed.ts",
+    "seed:review-tags": "tsx --env-file=../.env ./src/seed-review-tags.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {

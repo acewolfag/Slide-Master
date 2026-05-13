@@ -57,8 +57,11 @@ export default function CustomDesignRequest() {
     try {
       const formData = new FormData();
       Array.from(files).forEach(f => formData.append("files", f));
-      const res = await fetch("/api/upload", { method: "POST", body: formData });
-      if (!res.ok) throw new Error("Upload thất bại");
+      const res = await fetch("/api/upload-attachment", { method: "POST", body: formData });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error ?? `Upload thất bại (HTTP ${res.status})`);
+      }
       const data = await res.json();
       setAttachments(prev => [...prev, ...data.files]);
       toast({ title: `Đã tải lên ${data.files.length} file thành công` });
