@@ -1,6 +1,6 @@
 import { Layout } from "@/components/layout";
 import { useParams, Link } from "wouter";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
   useGetTemplate,
   getGetTemplateQueryKey,
@@ -14,7 +14,7 @@ import {
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Star, ShoppingCart, Download, Check, MonitorPlay, Layers, ChevronRight } from "lucide-react";
+import { Star, ShoppingCart, Download, Check, MonitorPlay, Layers, ChevronRight, ChevronLeft, ImageIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
@@ -28,6 +28,113 @@ interface PublicCriteria {
   slug: string;
   labelVi: string;
   labelEn: string | null;
+}
+
+function PreviewGallery({
+  thumbnailUrl,
+  previewImages,
+  alt,
+}: {
+  thumbnailUrl: string;
+  previewImages: string[];
+  alt: string;
+}) {
+  // Dedupe — backend đôi khi vẫn để slide 1 trùng với thumbnail.
+  const items = Array.from(
+    new Set([thumbnailUrl, ...previewImages].filter((u): u is string => !!u)),
+  );
+
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+  const stripRef = useRef<HTMLDivElement>(null);
+
+  const heroIdx = hoveredIdx ?? 0;
+  const heroSrc = items[heroIdx];
+
+  const scroll = (dir: -1 | 1) => {
+    stripRef.current?.scrollBy({ left: dir * 280, behavior: "smooth" });
+  };
+
+  // Hero placeholder khi template chưa có ảnh nào.
+  if (items.length === 0) {
+    return (
+      <div className="space-y-4">
+        <div className="aspect-[16/9] rounded-xl bg-slate-100 border border-dashed border-border/50 flex flex-col items-center justify-center text-slate-400 gap-2">
+          <ImageIcon className="w-12 h-12" />
+          <span className="text-sm">Chưa có hình preview</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Hero: đổi theo tile đang hover, mouse-leave trả về thumbnail gốc (index 0). */}
+      <div className="aspect-[16/9] rounded-xl overflow-hidden bg-slate-100 border border-border/50">
+        <img
+          key={heroSrc}
+          src={heroSrc}
+          alt={alt}
+          className="w-full h-full object-cover transition-opacity duration-200 animate-in fade-in"
+        />
+      </div>
+
+      {/* Strip + nav buttons */}
+      <div className="relative group">
+        {items.length > 4 && (
+          <>
+            <button
+              type="button"
+              onClick={() => scroll(-1)}
+              aria-label="Cuộn trái"
+              className="absolute left-1 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-white/90 backdrop-blur shadow-md border border-border/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => scroll(1)}
+              aria-label="Cuộn phải"
+              className="absolute right-1 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-white/90 backdrop-blur shadow-md border border-border/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </>
+        )}
+
+        <div
+          ref={stripRef}
+          className="flex gap-3 overflow-x-auto scroll-smooth pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
+          {items.map((img, idx) => {
+            const isActive = idx === heroIdx;
+            return (
+              <button
+                key={`${img}-${idx}`}
+                type="button"
+                onMouseEnter={() => setHoveredIdx(idx)}
+                onMouseLeave={() => setHoveredIdx(null)}
+                onFocus={() => setHoveredIdx(idx)}
+                onBlur={() => setHoveredIdx(null)}
+                aria-label={idx === 0 ? "Ảnh đại diện" : `Xem preview ${idx}`}
+                className={`flex-shrink-0 w-32 sm:w-36 aspect-[16/9] rounded-lg overflow-hidden bg-slate-100 border-2 transition-all ${
+                  isActive
+                    ? "border-primary ring-2 ring-primary/20"
+                    : "border-border/50 hover:border-primary/50"
+                }`}
+              >
+                <img
+                  src={img}
+                  alt={idx === 0 ? "Thumbnail" : `Preview ${idx}`}
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                />
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function ReviewForm({ templateId }: { templateId: number }) {
@@ -236,24 +343,12 @@ export default function TemplateDetail() {
       <div className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 mb-16">
           {/* Left: Images */}
-          <div className="lg:col-span-2 space-y-4">
-            <div className="aspect-[16/9] rounded-xl overflow-hidden bg-slate-100 border border-border/50">
-              <img 
-                src={template.thumbnailUrl} 
-                alt={template.titleVi}
-                className="w-full h-full object-cover"
-              />
-            </div>
-            <div className="grid grid-cols-4 gap-4">
-              <div className="aspect-[16/9] rounded-lg overflow-hidden border-2 border-primary">
-                <img src={template.thumbnailUrl} alt="Thumbnail" className="w-full h-full object-cover" />
-              </div>
-              {template.previewImages?.slice(0, 3).map((img, idx) => (
-                <div key={idx} className="aspect-[16/9] rounded-lg overflow-hidden border border-border/50 cursor-pointer hover:border-primary/50 transition-colors">
-                  <img src={img} alt={`Preview ${idx + 1}`} className="w-full h-full object-cover" />
-                </div>
-              ))}
-            </div>
+          <div className="lg:col-span-2">
+            <PreviewGallery
+              thumbnailUrl={template.thumbnailUrl}
+              previewImages={template.previewImages ?? []}
+              alt={template.titleVi}
+            />
           </div>
 
           {/* Right: Info */}

@@ -217,6 +217,7 @@ router.get("/templates", async (req, res): Promise<void> => {
   if (minPrice) conditions.push(gte(templatesTable.price, minPrice));
   if (maxPrice) conditions.push(lte(templatesTable.price, maxPrice));
   if (isFree === "true") conditions.push(eq(templatesTable.isFree, true));
+  if (tag) conditions.push(sql`${tag} = ANY(${templatesTable.tags})`);
   if (search) {
     conditions.push(or(
       ilike(templatesTable.titleVi, `%${search}%`),

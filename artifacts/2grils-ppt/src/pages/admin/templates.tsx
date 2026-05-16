@@ -811,12 +811,15 @@ function ArchiveUploadDialog({
 
   const handleUse = (f: ExtractedFile) => {
     const thumb = customThumb[f.name] ?? f.thumbnailUrl ?? "";
+    // Backend đã dùng slide 1 làm thumbnail (previewImages[0]). Cắt nó khỏi
+    // gallery để không hiển thị trùng với thumbnail.
+    const preview = (f.previewImages ?? []).slice(1);
     onUseExtracted({
       titleVi: f.suggestedTitle,
       titleEn: f.suggestedTitle,
       slug: archiveSlugify(f.suggestedTitle),
       thumbnailUrl: thumb,
-      previewImages: f.previewImages ?? [],
+      previewImages: preview,
       fileUrl: f.pptxUrl,
       slideCount: f.slideCount ?? 20,
     });

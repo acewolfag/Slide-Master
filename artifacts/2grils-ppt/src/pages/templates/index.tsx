@@ -18,15 +18,27 @@ export default function Templates() {
   const initialCategory = queryParams.get("category") || undefined;
   const initialSort = queryParams.get("sort") || "newest";
   const initialSearch = queryParams.get("q") || undefined;
+  const initialTag = queryParams.get("tag") || undefined;
 
   const [category, setCategory] = useState<string | undefined>(initialCategory);
   const [sort, setSort] = useState<string>(initialSort);
   const [search, setSearch] = useState<string | undefined>(initialSearch);
+  const [tag, setTagState] = useState<string | undefined>(initialTag);
+
+  const setTag = (next: string | undefined) => {
+    setTagState(next);
+    const params = new URLSearchParams(window.location.search);
+    if (next) params.set("tag", next);
+    else params.delete("tag");
+    const qs = params.toString();
+    window.history.replaceState(null, "", `/templates${qs ? `?${qs}` : ""}`);
+  };
 
   const { data: templatesData, isLoading } = useListTemplates({
     category,
     sort: sort as any,
-    search
+    search,
+    tag,
   });
 
   const { data: categories } = useListCategories();
@@ -74,11 +86,23 @@ export default function Templates() {
       <div>
         <h3 className="font-semibold mb-3">Thẻ (Tags)</h3>
         <div className="flex flex-wrap gap-2">
-          {tags?.map(t => (
-            <Badge key={t.id} variant="outline" className="cursor-pointer hover:bg-secondary">
-              {t.name}
-            </Badge>
-          ))}
+          {tags?.map(t => {
+            const isActive = tag === t.name;
+            return (
+              <Badge
+                key={t.id}
+                variant={isActive ? "default" : "outline"}
+                className={`cursor-pointer transition-colors ${
+                  isActive ? "brand-gradient text-white border-none" : "hover:bg-secondary"
+                }`}
+                onClick={() => setTag(isActive ? undefined : t.name)}
+                data-testid={`tag-${t.name}`}
+              >
+                {t.name}
+                <span className="ml-1 text-xs opacity-70">({t.templateCount})</span>
+              </Badge>
+            );
+          })}
         </div>
       </div>
     </div>
@@ -171,6 +195,7 @@ export default function Templates() {
                   onClick={() => {
                     setCategory(undefined);
                     setSearch(undefined);
+                    setTag(undefined);
                   }}
                 >
                   Xóa bộ lọc
