@@ -23,8 +23,10 @@ COPY lib/api-zod/package.json lib/api-zod/
 COPY scripts/package.json scripts/
 
 # preinstall guard checks user-agent; pnpm itself sets it correctly.
+# Note: using --no-frozen-lockfile because lockfile may have config-hash
+# mismatch when generated cross-platform (Windows dev → Linux container).
 RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile
+    pnpm install --no-frozen-lockfile
 
 # Copy source
 COPY . .
@@ -74,7 +76,7 @@ COPY --from=build /repo/lib/db/src lib/db/src
 # Production-only install (esbuild externalizes node-stream-zip / node-unrar-js /
 # pdf-to-png-converter / pdfjs-dist — they must be installed at runtime).
 RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile --prod \
+    pnpm install --no-frozen-lockfile --prod \
       --filter @workspace/api-server \
       --filter @workspace/db
 
