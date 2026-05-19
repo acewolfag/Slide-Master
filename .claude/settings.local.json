@@ -56,7 +56,8 @@
       "Bash(pnpm --filter @workspace/scripts run seed:review-tags)",
       "Bash(pnpm --filter @workspace/2grils-ppt run typecheck)",
       "Bash(pnpm --filter @workspace/api-server run start)",
-      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8080/api/health)"
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8080/api/health)",
+      "Bash(ver)"
     ]
   }
 }

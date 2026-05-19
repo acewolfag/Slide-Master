@@ -112,6 +112,17 @@ app.use("/api", (_req, res) => {
   res.status(404).json({ error: "Endpoint not found" });
 });
 
+// Serve frontend SPA in production (single-container deploy).
+// In local dev Vite owns the frontend on a separate port; the dist folder
+// won't exist and these handlers silently 404.
+const frontendDist = path.resolve(__dirname, "../../2grils-ppt/dist/public");
+app.use(express.static(frontendDist, { index: false, maxAge: "1h" }));
+app.get(/^\/(?!api).*/, (_req, res) => {
+  res.sendFile(path.join(frontendDist, "index.html"), (err) => {
+    if (err) res.status(404).end();
+  });
+});
+
 // Final error handler — never leak stack traces or internal paths
 app.use((err: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
   const isProd = process.env.NODE_ENV === "production";

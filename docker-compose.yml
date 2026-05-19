@@ -1,0 +1,56 @@
+# docker-compose for self-hosted deploy via Coolify.
+# Coolify reads this file when you connect the GitHub repo as a "Docker Compose"
+# resource. Env vars are managed in the Coolify UI; secrets stay out of git.
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: slide-master:latest
+    restart: unless-stopped
+    environment:
+      # Required — set these in Coolify UI, never commit real values
+      DATABASE_URL: ${DATABASE_URL}
+      SESSION_SECRET: ${SESSION_SECRET}
+      # Public origin used for CORS + email links
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      # Runtime
+      NODE_ENV: production
+      API_PORT: 8080
+      TRUST_PROXY: 1
+      # Optional integrations
+      SEPAY_TOKEN: ${SEPAY_TOKEN:-}
+      SEPAY_BANK_ACCOUNT: ${SEPAY_BANK_ACCOUNT:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+    volumes:
+      # Persistent uploads — survives container rebuilds.
+      # On a Coolify host this lives under /data/coolify/services/<id>/uploads.
+      - uploads:/app/artifacts/api-server/uploads
+    # Internal only — Cloudflare Tunnel reaches it via the compose network.
+    expose:
+      - "8080"
+    networks:
+      - web
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    # Requires CF_TUNNEL_TOKEN set in Coolify env. Create the tunnel in
+    # Cloudflare Zero Trust dashboard, add a public hostname pointing to
+    # http://app:8080, copy the token here.
+    command: tunnel --no-autoupdate run --token ${CF_TUNNEL_TOKEN}
+    depends_on:
+      - app
+    networks:
+      - web
+
+volumes:
+  uploads:
+
+networks:
+  web:

@@ -1,0 +1,51 @@
+# VCS
+.git
+.gitignore
+.gitattributes
+
+# Dependencies — let pnpm install fresh inside container
+node_modules
+**/node_modules
+
+# Build outputs — rebuilt in container
+**/dist
+**/.vite
+**/.next
+**/.turbo
+
+# Local env / secrets — provided by docker-compose env
+.env
+.env.*
+!.env.example
+
+# IDE / OS
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Test / coverage
+coverage/
+.nyc_output/
+
+# Local uploads / data — runtime volume, not part of image
+artifacts/api-server/uploads/
+uploads/
+*.pptx
+*.pdf
+attached_assets/
+
+# Replit
+.replit
+replit.nix
+.upm/
+.cache/
+
+# Misc large
+*.zip
+*.rar
+*.tar.gz
